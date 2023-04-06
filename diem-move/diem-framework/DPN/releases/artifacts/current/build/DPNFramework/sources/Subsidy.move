@@ -176,7 +176,7 @@ address DiemFramework {
       let len = Vector::length(&genesis_validators);
       // ten coins for validator, sufficient for first epoch of transactions,
       // and an extra which the validator will send to operator.
-      let subsidy = 11000000;
+      let subsidy = 12500000;
       let i = 0;
       while (i < len) {
         let node_address = *(Vector::borrow<address>(&genesis_validators, i));

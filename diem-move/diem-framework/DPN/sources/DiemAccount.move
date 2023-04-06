@@ -59,7 +59,7 @@ module DiemFramework::DiemAccount {
     // use DiemFramework::DonorDirected;
     use DiemFramework::Ancestry;
     use DiemFramework::Vouch;
-    use DiemFramework::Debug::print;
+    // use DiemFramework::Debug::print;
     use DiemFramework::Jail;
     use DiemFramework::Testnet;
 
@@ -3697,8 +3697,6 @@ module DiemFramework::DiemAccount {
       let i = 0u64;
       while (i < Vector::length(vals)) {
         let val = Vector::borrow(vals, i);
-        print(val);
-        print(&fee);
 
         vm_pay_user_fee(vm, *val, fee, *metadata);
         i = i + 1;

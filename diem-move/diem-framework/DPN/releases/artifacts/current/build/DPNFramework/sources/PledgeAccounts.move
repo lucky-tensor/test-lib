@@ -491,7 +491,7 @@ address DiemFramework{
 
           let addr = Signer::address_of(account);
 
-          let coin = DiemAccount::vm_withdraw<GAS>(vm, addr, 1000000);
+          let coin = DiemAccount::vm_withdraw<GAS>(vm, addr, 2500000);
           save_pledge(account, @VMReserved, coin);
         }
 

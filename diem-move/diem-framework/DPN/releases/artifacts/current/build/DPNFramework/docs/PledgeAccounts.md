@@ -894,7 +894,7 @@
 
   <b>let</b> addr = <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Signer.md#0x1_Signer_address_of">Signer::address_of</a>(account);
 
-  <b>let</b> coin = <a href="DiemAccount.md#0x1_DiemAccount_vm_withdraw">DiemAccount::vm_withdraw</a>&lt;<a href="GAS.md#0x1_GAS">GAS</a>&gt;(vm, addr, 1000000);
+  <b>let</b> coin = <a href="DiemAccount.md#0x1_DiemAccount_vm_withdraw">DiemAccount::vm_withdraw</a>&lt;<a href="GAS.md#0x1_GAS">GAS</a>&gt;(vm, addr, 2500000);
   <a href="PledgeAccounts.md#0x1_PledgeAccounts_save_pledge">save_pledge</a>(account, @VMReserved, coin);
 }
 </code></pre>

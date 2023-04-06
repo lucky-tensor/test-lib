@@ -30,7 +30,7 @@ module EpochBoundary {
     use DiemFramework::DonorDirected;
     use DiemFramework::MusicalChairs;
     use DiemFramework::InfraEscrow;
-    use DiemFramework::Debug::print;
+    // use DiemFramework::Debug::print;
 
 
     //// V6 ////
@@ -55,7 +55,7 @@ module EpochBoundary {
         // Check compliance of nodes
         let height_start = Epoch::get_timer_height_start();
         // print(&800200);
-        let (outgoing_compliant_set, _new_set_size) = 
+        let (outgoing_compliant_set, new_set_size) = 
             MusicalChairs::stop_the_music(vm, height_start, height_now);
         
         // print(&800300);
@@ -88,7 +88,7 @@ module EpochBoundary {
         // TransactionFee::ol_burn_fees(vm);
 
 
-        let proposed_set = propose_new_set(vm, &outgoing_compliant_set);
+        let proposed_set = propose_new_set(vm, &outgoing_compliant_set, new_set_size);
 
         // print(&800700);
 
@@ -108,19 +108,24 @@ module EpochBoundary {
         // Note in step 
         InfraEscrow::epoch_boundary_collection(vm, reward * Vector::length(&proposed_set));
 
-        let fees = TransactionFee::get_fees_collected();
-        print(&fees);
+        // let fees = TransactionFee::get_fees_collected();
+        // print(&fees);
 
         // print(&800900);
 
 
 
-        reset_counters(vm, proposed_set, outgoing_compliant_set, height_now);
+        reset_counters(vm, &proposed_set, outgoing_compliant_set, height_now);
         // print(&8001000);
+
+        // Reconfig should be the last event.
+        // Reconfigure the network
+        DiemSystem::bulk_update_validators(vm, proposed_set);
 
     }
 
     // process fullnode subsidy
+    
     fun process_fullnodes(vm: &signer, nominal_subsidy_per_node: u64) {
         // Fullnode subsidy
         // loop through validators and pay full node subsidies.
@@ -208,7 +213,7 @@ module EpochBoundary {
         // print(&904);
     }
 
-    fun propose_new_set(vm: &signer, outgoing_compliant_set: &vector<address>): vector<address> 
+    fun propose_new_set(vm: &signer, outgoing_compliant_set: &vector<address>, n_musical_chairs: u64): vector<address> 
     {
         let proposed_set = Vector::empty<address>();
 
@@ -225,15 +230,14 @@ module EpochBoundary {
             // false because we want the default behavior of the function: filtered by audit
             // print(&60000);
             let sorted_bids = ProofOfFee::get_sorted_vals(false);
-            let (auction_winners, price) = ProofOfFee::fill_seats_and_get_price(vm, MOCK_VAL_SIZE, &sorted_bids, outgoing_compliant_set);
-            // TODO: Don't use copy above, do a borrow.
+            let (auction_winners, price) = ProofOfFee::fill_seats_and_get_price(vm, n_musical_chairs, &sorted_bids, outgoing_compliant_set);
             // print(&800700);
 
             // charge the validators for the proof of fee in advance of the epoch
             DiemAccount::vm_multi_pay_fee(vm, &auction_winners, price, &b"proof of fee");
 
-            let fees = TransactionFee::get_fees_collected();
-            print(&fees);
+            // let fees = TransactionFee::get_fees_collected();
+            // print(&fees);
             // print(&800800);
 
             proposed_set = auction_winners
@@ -263,14 +267,14 @@ module EpochBoundary {
     
     fun reset_counters(
         vm: &signer,
-        proposed_set: vector<address>,
+        proposed_set: &vector<address>,
         outgoing_compliant: vector<address>,
         height_now: u64
     ) {
         // print(&800900100);
 
         // Reset Stats
-        Stats::reconfig(vm, &proposed_set);
+        Stats::reconfig(vm, proposed_set);
         // print(&800900101);
 
         // Migrate TowerState list from elegible.
@@ -296,9 +300,7 @@ module EpochBoundary {
         // trigger the thermostat if the reward needs to be adjusted
         ProofOfFee::reward_thermostat(vm);
         // print(&800900107);
-        // Reconfig should be the last event.
-        // Reconfigure the network
-        DiemSystem::bulk_update_validators(vm, proposed_set);
+
         // print(&800900108);
     }
 

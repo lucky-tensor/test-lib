@@ -30,7 +30,7 @@ module EpochBoundary {
     use DiemFramework::DonorDirected;
     use DiemFramework::MusicalChairs;
     use DiemFramework::InfraEscrow;
-    use DiemFramework::Debug::print;
+    // use DiemFramework::Debug::print;
 
 
     //// V6 ////
@@ -45,17 +45,37 @@ module EpochBoundary {
     // Function code: 01. Prefix: 180001
     public fun reconfigure(vm: &signer, height_now: u64) {
         CoreAddresses::assert_vm(vm);
-        
-
         ///////// SETTLE ACCOUNTS OF PREVIOUS EPOCH /////////
-        // Update all slow wallet limits
+        let (outgoing_compliant_set, new_set_size) = settle_accounts(vm, height_now);
+
+        ///////// PREPARE NEXT EPOCH /////////
+        let proposed_set = prepare_and_fund_coming_epoch(vm, &outgoing_compliant_set, new_set_size);
+
+        // reset the counter on several services
+        reset_counters(vm, &proposed_set, &outgoing_compliant_set, height_now);
+        // print(&8001000);
+
+        // Reconfig should be the last event.
+        // Reconfigure the network
+        DiemSystem::bulk_update_validators(vm, proposed_set);
+    }
+
+    /// This is the epoch's EPILOGUE, what runs at the close of an epoch.
+    /// We are basically evaluating performance and settling accounts. The out puts of the epoch closing is which validators were performant, what should the new set size be (based on Musical Chairs).
+
+    /// Release funds for slow wallets
+    /// Pay validators
+    /// Pay Oracles
+    fun settle_accounts(vm: &signer, height_now: u64): (vector<address>, u64) { // (outgoing_compliant_set, new_set_size)
+        CoreAddresses::assert_vm(vm);
+              // Update all slow wallet limits before we need to pay people
         DiemAccount::slow_wallet_epoch_drip(vm, Globals::get_unlock()); // todo
         // print(&800100);
 
         // Check compliance of nodes
         let height_start = Epoch::get_timer_height_start();
         // print(&800200);
-        let (outgoing_compliant_set, _new_set_size) = 
+        let (outgoing_compliant_set, new_set_size) = 
             MusicalChairs::stop_the_music(vm, height_start, height_now);
         
         // print(&800300);
@@ -72,7 +92,7 @@ module EpochBoundary {
         
         // print(&800500);
         
-        process_validators(vm, reward, &outgoing_compliant_set, total_fees);
+        process_validators(vm, reward, &outgoing_compliant_set);
         // print(&800600);
 
         // process the non performing nodes: jail
@@ -81,46 +101,36 @@ module EpochBoundary {
         // EVERYONE SHOULD BE PAID UP AT THIS POINT
         // after everyone is paid from the chain's Fee account
         // we can burn the remainder.
-        // Note we assume Oracle subsidy was paid prior to this.
 
-        // TODO: implement what happens to the matching donation algo
-        // depending on the validator's preferences.
-        // TransactionFee::ol_burn_fees(vm);
+        process_burn(vm, total_fees);
 
+        (outgoing_compliant_set, new_set_size)
+    }
 
-        let proposed_set = propose_new_set(vm, &outgoing_compliant_set);
+    fun prepare_and_fund_coming_epoch(vm: &signer, outgoing_compliant_set: &vector<address>, new_set_size: u64): vector<address> {
+      CoreAddresses::assert_vm(vm);
+        // Propose the next validator set, and collect the bids from proof of fee winners.
 
-        // print(&800700);
+        let proposed_set = propose_new_set(vm, outgoing_compliant_set, new_set_size);
 
+        // collect fees for Root Security services
         root_service_billing(vm);
         // print(&801000);
 
-        // reset_counters(vm, proposed_set, outgoing_compliant_set, height_now);
-        // print(&801100);
-        ///////// PREPARE NEXT EPOCH /////////
-
-        // let proposed_set = propose_new_set(vm, &outgoing_compliant_set, new_set_size);
-
-
-        // print(&800800);
-
         // Now we need to collect coins from infrastructure escrow, to temporarily fund the network fee address for the next set.
         // Note in step 
-        InfraEscrow::epoch_boundary_collection(vm, reward * Vector::length(&proposed_set));
 
-        let fees = TransactionFee::get_fees_collected();
-        print(&fees);
+        // trigger the thermostat if the reward needs to be adjusted
+        ProofOfFee::reward_thermostat(vm);
+        let (reward_budget, _, _) = ProofOfFee::get_consensus_reward();   
 
-        // print(&800900);
+        // fund the network fee address with the reward budget
+        InfraEscrow::epoch_boundary_collection(vm, reward_budget * Vector::length(&proposed_set));
 
-
-
-        reset_counters(vm, proposed_set, outgoing_compliant_set, height_now);
-        // print(&8001000);
-
+        proposed_set
     }
 
-    // process fullnode subsidy
+    /// process Oracle subsidy
     fun process_fullnodes(vm: &signer, nominal_subsidy_per_node: u64) {
         // Fullnode subsidy
         // loop through validators and pay full node subsidies.
@@ -161,7 +171,6 @@ module EpochBoundary {
         vm: &signer,
         subsidy_units: u64,
         outgoing_compliant_set: &vector<address>,
-        fees_collected: u64,
     ) {
         // Process outgoing validators:
         // Distribute Transaction fees and subsidy payments to all outgoing validators
@@ -174,12 +183,14 @@ module EpochBoundary {
             Subsidy::process_fees(vm, outgoing_compliant_set);
         };
 
+    }
+
+    fun process_burn(vm: &signer, fees_collected: u64) {
         // after everyone is paid from the chain's Fee account
         // we can burn the excess fees from the epoch
         Burn::reset_ratios(vm);
 
         Burn::epoch_burn_fees(vm, fees_collected);
-
     }
 
     fun process_jail(vm: &signer, outgoing_compliant_set: &vector<address>) {
@@ -208,7 +219,7 @@ module EpochBoundary {
         // print(&904);
     }
 
-    fun propose_new_set(vm: &signer, outgoing_compliant_set: &vector<address>): vector<address> 
+    fun propose_new_set(vm: &signer, outgoing_compliant_set: &vector<address>, n_musical_chairs: u64): vector<address> 
     {
         let proposed_set = Vector::empty<address>();
 
@@ -223,20 +234,9 @@ module EpochBoundary {
             // CONSENSUS CRITICAL
             // pick the validators based on proof of fee.
             // false because we want the default behavior of the function: filtered by audit
-            // print(&60000);
-            let sorted_bids = ProofOfFee::get_sorted_vals(false);
-            let (auction_winners, price) = ProofOfFee::fill_seats_and_get_price(vm, MOCK_VAL_SIZE, &sorted_bids, outgoing_compliant_set);
-            // TODO: Don't use copy above, do a borrow.
-            // print(&800700);
 
-            // charge the validators for the proof of fee in advance of the epoch
-            DiemAccount::vm_multi_pay_fee(vm, &auction_winners, price, &b"proof of fee");
 
-            let fees = TransactionFee::get_fees_collected();
-            print(&fees);
-            // print(&800800);
-
-            proposed_set = auction_winners
+            proposed_set = ProofOfFee::epoch_boundary(vm, outgoing_compliant_set, n_musical_chairs);
         };
 
         //////// Failover Rules ////////
@@ -263,18 +263,18 @@ module EpochBoundary {
     
     fun reset_counters(
         vm: &signer,
-        proposed_set: vector<address>,
-        outgoing_compliant: vector<address>,
+        proposed_set: &vector<address>,
+        outgoing_compliant: &vector<address>,
         height_now: u64
     ) {
         // print(&800900100);
 
         // Reset Stats
-        Stats::reconfig(vm, &proposed_set);
+        Stats::reconfig(vm, proposed_set);
         // print(&800900101);
 
         // Migrate TowerState list from elegible.
-        TowerState::reconfig(vm, &outgoing_compliant);
+        TowerState::reconfig(vm, outgoing_compliant);
         // print(&800900102);
 
         // process community wallets
@@ -293,12 +293,9 @@ module EpochBoundary {
         TransactionFee::epoch_reset_fee_maker(vm);
 
 
-        // trigger the thermostat if the reward needs to be adjusted
-        ProofOfFee::reward_thermostat(vm);
+
         // print(&800900107);
-        // Reconfig should be the last event.
-        // Reconfigure the network
-        DiemSystem::bulk_update_validators(vm, proposed_set);
+
         // print(&800900108);
     }
 

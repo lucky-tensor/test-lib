@@ -18,7 +18,6 @@
 <pre><code><b>use</b> <a href="AutoPay.md#0x1_AutoPay">0x1::AutoPay</a>;
 <b>use</b> <a href="Burn.md#0x1_Burn">0x1::Burn</a>;
 <b>use</b> <a href="CoreAddresses.md#0x1_CoreAddresses">0x1::CoreAddresses</a>;
-<b>use</b> <a href="Debug.md#0x1_Debug">0x1::Debug</a>;
 <b>use</b> <a href="DiemAccount.md#0x1_DiemAccount">0x1::DiemAccount</a>;
 <b>use</b> <a href="DiemConfig.md#0x1_DiemConfig">0x1::DiemConfig</a>;
 <b>use</b> <a href="DiemSystem.md#0x1_DiemSystem">0x1::DiemSystem</a>;
@@ -82,7 +81,7 @@
     // Check compliance of nodes
     <b>let</b> height_start = <a href="Epoch.md#0x1_Epoch_get_timer_height_start">Epoch::get_timer_height_start</a>();
     // print(&800200);
-    <b>let</b> (outgoing_compliant_set, _new_set_size) =
+    <b>let</b> (outgoing_compliant_set, new_set_size) =
         <a href="MusicalChairs.md#0x1_MusicalChairs_stop_the_music">MusicalChairs::stop_the_music</a>(vm, height_start, height_now);
 
     // print(&800300);
@@ -115,7 +114,7 @@
     // TransactionFee::ol_burn_fees(vm);
 
 
-    <b>let</b> proposed_set = <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm, &outgoing_compliant_set);
+    <b>let</b> proposed_set = <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm, &outgoing_compliant_set, new_set_size);
 
     // print(&800700);
 
@@ -135,15 +134,19 @@
     // Note in step
     <a href="InfraEscrow.md#0x1_InfraEscrow_epoch_boundary_collection">InfraEscrow::epoch_boundary_collection</a>(vm, reward * <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector_length">Vector::length</a>(&proposed_set));
 
-    <b>let</b> fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
-    print(&fees);
+    // <b>let</b> fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
+    // print(&fees);
 
     // print(&800900);
 
 
 
-    <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(vm, proposed_set, outgoing_compliant_set, height_now);
+    <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(vm, &proposed_set, outgoing_compliant_set, height_now);
     // print(&8001000);
+
+    // Reconfig should be the last event.
+    // Reconfigure the network
+    <a href="DiemSystem.md#0x1_DiemSystem_bulk_update_validators">DiemSystem::bulk_update_validators</a>(vm, proposed_set);
 
 }
 </code></pre>
@@ -305,7 +308,7 @@
 
 
 
-<pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm: &signer, outgoing_compliant_set: &vector&lt;<b>address</b>&gt;): vector&lt;<b>address</b>&gt;
+<pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm: &signer, outgoing_compliant_set: &vector&lt;<b>address</b>&gt;, n_musical_chairs: u64): vector&lt;<b>address</b>&gt;
 </code></pre>
 
 
@@ -314,7 +317,7 @@
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm: &signer, outgoing_compliant_set: &vector&lt;<b>address</b>&gt;): vector&lt;<b>address</b>&gt;
+<pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm: &signer, outgoing_compliant_set: &vector&lt;<b>address</b>&gt;, n_musical_chairs: u64): vector&lt;<b>address</b>&gt;
 {
     <b>let</b> proposed_set = <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector_empty">Vector::empty</a>&lt;<b>address</b>&gt;();
 
@@ -331,15 +334,14 @@
         // <b>false</b> because we want the default behavior of the function: filtered by audit
         // print(&60000);
         <b>let</b> sorted_bids = <a href="ProofOfFee.md#0x1_ProofOfFee_get_sorted_vals">ProofOfFee::get_sorted_vals</a>(<b>false</b>);
-        <b>let</b> (auction_winners, price) = <a href="ProofOfFee.md#0x1_ProofOfFee_fill_seats_and_get_price">ProofOfFee::fill_seats_and_get_price</a>(vm, <a href="EpochBoundary.md#0x1_EpochBoundary_MOCK_VAL_SIZE">MOCK_VAL_SIZE</a>, &sorted_bids, outgoing_compliant_set);
-        // TODO: Don't <b>use</b> <b>copy</b> above, do a borrow.
+        <b>let</b> (auction_winners, price) = <a href="ProofOfFee.md#0x1_ProofOfFee_fill_seats_and_get_price">ProofOfFee::fill_seats_and_get_price</a>(vm, n_musical_chairs, &sorted_bids, outgoing_compliant_set);
         // print(&800700);
 
         // charge the validators for the proof of fee in advance of the epoch
         <a href="DiemAccount.md#0x1_DiemAccount_vm_multi_pay_fee">DiemAccount::vm_multi_pay_fee</a>(vm, &auction_winners, price, &b"proof of fee");
 
-        <b>let</b> fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
-        print(&fees);
+        // <b>let</b> fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
+        // print(&fees);
         // print(&800800);
 
         proposed_set = auction_winners
@@ -378,7 +380,7 @@
 
 
 
-<pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(vm: &signer, proposed_set: vector&lt;<b>address</b>&gt;, outgoing_compliant: vector&lt;<b>address</b>&gt;, height_now: u64)
+<pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(vm: &signer, proposed_set: &vector&lt;<b>address</b>&gt;, outgoing_compliant: vector&lt;<b>address</b>&gt;, height_now: u64)
 </code></pre>
 
 
@@ -389,14 +391,14 @@
 
 <pre><code><b>fun</b> <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(
     vm: &signer,
-    proposed_set: vector&lt;<b>address</b>&gt;,
+    proposed_set: &vector&lt;<b>address</b>&gt;,
     outgoing_compliant: vector&lt;<b>address</b>&gt;,
     height_now: u64
 ) {
     // print(&800900100);
 
     // Reset <a href="Stats.md#0x1_Stats">Stats</a>
-    <a href="Stats.md#0x1_Stats_reconfig">Stats::reconfig</a>(vm, &proposed_set);
+    <a href="Stats.md#0x1_Stats_reconfig">Stats::reconfig</a>(vm, proposed_set);
     // print(&800900101);
 
     // Migrate <a href="TowerState.md#0x1_TowerState">TowerState</a> list from elegible.
@@ -422,9 +424,7 @@
     // trigger the thermostat <b>if</b> the reward needs <b>to</b> be adjusted
     <a href="ProofOfFee.md#0x1_ProofOfFee_reward_thermostat">ProofOfFee::reward_thermostat</a>(vm);
     // print(&800900107);
-    // Reconfig should be the last event.
-    // Reconfigure the network
-    <a href="DiemSystem.md#0x1_DiemSystem_bulk_update_validators">DiemSystem::bulk_update_validators</a>(vm, proposed_set);
+
     // print(&800900108);
 }
 </code></pre>
