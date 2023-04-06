@@ -14,11 +14,11 @@ script {
   use DiemFramework::Burn;
   use DiemFramework::Diem;
   use DiemFramework::GAS::GAS;
-  use DiemFramework::Debug::print;
+  // use DiemFramework::Debug::print;
   
     fun main(_dr: signer, sender: signer) {
-      let new_cap = Diem::market_cap<GAS>();
-      print(&new_cap);
+      // let new_cap = Diem::market_cap<GAS>();
+      // print(&new_cap);
     Burn::set_send_community(&sender, true);
   }
 }

@@ -1,12 +1,7 @@
 //# init --validators Alice Bob Carol Dave Eve
 
-// Happy case: All validators from genesis are compliant
-// and place sucessful bids for the next set.
-// we get to a new epoch.
-// Note: we are also testing the test runner syntax for advancing to new epoch.
-
-// Here EPOCH-LENGTH = 15 Blocks.
-// NOTE: This test will fail with Staging and Production Constants, only for Debug - due to epoch length.
+// Confirms that Infra Escrow is withdrawn
+// from pledge accounts at time of epoch boundary prologue
 
 //# run --admin-script --signers DiemRoot DiemRoot
 script {
@@ -14,7 +9,7 @@ script {
     use DiemFramework::Mock;
     use DiemFramework::EpochBoundary;
     use DiemFramework::TransactionFee;
-    use DiemFramework::Debug::print;
+    // use DiemFramework::Debug::print;
     use Std::Vector;
 
 
@@ -26,22 +21,30 @@ script {
         assert!(DiemSystem::is_validator(@Bob) == true, 7357008012003);
 
         // all validators compliant
-        // Mock::all_good_validators(&vm);
-        Mock::mock_case_1(&vm, @Alice, 0, 10);
-        Mock::mock_case_1(&vm, @Bob, 0, 10);
+        Mock::all_good_validators(&vm);
+
+        let fees = TransactionFee::get_fees_collected();
+        // print(&fees);
+        assert!(fees == 0, 7357008012004);
+
+        EpochBoundary::test_settle(&vm, 10);
+
+        let fees = TransactionFee::get_fees_collected();
+        // print(&fees);
+        assert!(fees == 0, 7357008012004);
 
         let vals = Vector::singleton(@Alice);
         Vector::push_back(&mut vals, @Bob);
         Mock::mock_bids(&vm, &vals);
 
-        let fees = TransactionFee::get_fees_collected();
-        print(&fees);
-
-        EpochBoundary::reconfigure(&vm, 10);
+        EpochBoundary::test_prepare(&vm, &vals, 2);
 
         let fees = TransactionFee::get_fees_collected();
-        print(&fees);
-
+        // print(&fees);
+        // There's a decimal precision issue, and 1 micro is lost.
+        // left in each each pledge accounts.
+        assert!(fees == 4999995, 7357008012004);
+// 
     }
 }
 // check: EXECUTED

@@ -24,10 +24,10 @@ script {
       assert!(FixedPoint32::is_zero(ratio), 1003);
 
 
-      let (outgoing_compliant_set, new_set_size) = MusicalChairs::stop_the_music(&dr, 0, 15);
+      let (_outgoing_compliant_set, _new_set_size) = MusicalChairs::stop_the_music(&dr, 0, 15);
 
-      print(&outgoing_compliant_set);
-      print(&new_set_size);
+      //print(&outgoing_compliant_set);
+      //print(&new_set_size);
       assert!(MusicalChairs::get_current_seats() == 11, 1004)
     }
 }

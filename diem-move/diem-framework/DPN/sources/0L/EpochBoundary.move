@@ -30,6 +30,7 @@ module EpochBoundary {
     use DiemFramework::DonorDirected;
     use DiemFramework::MusicalChairs;
     use DiemFramework::InfraEscrow;
+    use DiemFramework::Testnet;
     // use DiemFramework::Debug::print;
 
 
@@ -46,10 +47,10 @@ module EpochBoundary {
     public fun reconfigure(vm: &signer, height_now: u64) {
         CoreAddresses::assert_vm(vm);
         ///////// SETTLE ACCOUNTS OF PREVIOUS EPOCH /////////
-        let (outgoing_compliant_set, new_set_size) = settle_accounts(vm, height_now);
+        let (outgoing_compliant_set, new_set_size) = epilogue_settle_accounts(vm, height_now);
 
         ///////// PREPARE NEXT EPOCH /////////
-        let proposed_set = prepare_and_fund_coming_epoch(vm, &outgoing_compliant_set, new_set_size);
+        let proposed_set = prologue_prepare_and_fund_coming_epoch(vm, &outgoing_compliant_set, new_set_size);
 
         // reset the counter on several services
         reset_counters(vm, &proposed_set, &outgoing_compliant_set, height_now);
@@ -66,7 +67,8 @@ module EpochBoundary {
     /// Release funds for slow wallets
     /// Pay validators
     /// Pay Oracles
-    fun settle_accounts(vm: &signer, height_now: u64): (vector<address>, u64) { // (outgoing_compliant_set, new_set_size)
+
+    fun epilogue_settle_accounts(vm: &signer, height_now: u64): (vector<address>, u64) { // (outgoing_compliant_set, new_set_size)
         CoreAddresses::assert_vm(vm);
               // Update all slow wallet limits before we need to pay people
         DiemAccount::slow_wallet_epoch_drip(vm, Globals::get_unlock()); // todo
@@ -107,7 +109,8 @@ module EpochBoundary {
         (outgoing_compliant_set, new_set_size)
     }
 
-    fun prepare_and_fund_coming_epoch(vm: &signer, outgoing_compliant_set: &vector<address>, new_set_size: u64): vector<address> {
+    /// This is the epoch's PROLOGUE, what runs at the beginning of an epoch.
+    fun prologue_prepare_and_fund_coming_epoch(vm: &signer, outgoing_compliant_set: &vector<address>, new_set_size: u64): vector<address> {
       CoreAddresses::assert_vm(vm);
         // Propose the next validator set, and collect the bids from proof of fee winners.
 
@@ -115,10 +118,8 @@ module EpochBoundary {
 
         // collect fees for Root Security services
         root_service_billing(vm);
-        // print(&801000);
 
         // Now we need to collect coins from infrastructure escrow, to temporarily fund the network fee address for the next set.
-        // Note in step 
 
         // trigger the thermostat if the reward needs to be adjusted
         ProofOfFee::reward_thermostat(vm);
@@ -156,11 +157,7 @@ module EpochBoundary {
 
               let miner_subsidy = count * proof_price;
 
-              // don't pay while we are in recovery mode, since that creates
-              // a frontrunning opportunity
-              // if (!RecoveryMode::is_recovery()){ 
                 FullnodeSubsidy::distribute_fullnode_subsidy(vm, addr, miner_subsidy);
-              // }
             };
 
             k = k + 1;
@@ -303,6 +300,20 @@ module EpochBoundary {
       MultiSigPayment::root_security_fee_billing(vm);
     }
 
+
+    //////// TEST HELPERS ////////
+
+    public fun test_settle(vm: &signer, height_now: u64) { 
+      CoreAddresses::assert_vm(vm);
+      Testnet::assert_testnet(vm);
+      epilogue_settle_accounts(vm, height_now);
+    }
+
+    public fun test_prepare(vm: &signer, outgoing: &vector<address>, set_size: u64) { 
+      CoreAddresses::assert_vm(vm);
+      Testnet::assert_testnet(vm);
+      prologue_prepare_and_fund_coming_epoch(vm, outgoing, set_size);
+    }
 
 }
 }
