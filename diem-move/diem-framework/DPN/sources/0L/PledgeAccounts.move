@@ -50,6 +50,7 @@ address DiemFramework{
         use DiemFramework::Diem;
         use DiemFramework::GAS::GAS;
         use DiemFramework::DiemAccount;
+        use DiemFramework::CoreAddresses;
 
 
         const ENO_BENEFICIARY_POLICY: u64 = 150001;
@@ -481,12 +482,26 @@ address DiemFramework{
           // otherwise leave the information as-is for reference purposes
         }
 
+
+        //// Genesis helper
+        // private function only to be used at genesis.
+        public fun genesis_infra_escrow_pledge(vm: &signer, account: &signer) acquires MyPledges, BeneficiaryPolicy {
+          // TODO: add genesis time here, once the timestamp genesis issue is fixed.
+          CoreAddresses::assert_vm(vm);
+
+          let addr = Signer::address_of(account);
+
+          let coin = DiemAccount::vm_withdraw<GAS>(vm, addr, 2500000);
+          save_pledge(account, @VMReserved, coin);
+        }
+
         ////////// TX SCRIPTS ////////// 
 
         public(script) fun user_pledge_tx(user_sig: signer, beneficiary: address, amount: u64)  acquires BeneficiaryPolicy, MyPledges {
           let coin = DiemAccount::simple_withdrawal(&user_sig, amount);
           save_pledge(&user_sig, beneficiary, coin);
         }
+
 
         ////////// GETTERS //////////
 

@@ -534,30 +534,31 @@ fn create_and_initialize_owners_operators(
         );
 
         //////// 0L ////////
+        // NOTE: 0L: removed code: Autopay not a feature in genesis
         // submit any transactions for user e.g. Autopay
-        if let Some(profile) = &v.genesis_mining_proof.profile {
-            match &profile.autopay_instructions {
-                Some(list) => {
-                    list.into_iter().for_each(|ins| {
-                        let autopay_instruction =
-                            transaction_builder::encode_autopay_create_instruction_script_function(
-                                ins.uid.unwrap(),
-                                ins.type_move.unwrap(),
-                                ins.destination,
-                                ins.duration_epochs.unwrap(),
-                                ins.value_move.unwrap(),
-                            )
-                            .into_script_function();
-                        exec_script_function(
-                            session,
-                            v.address,
-                            &autopay_instruction,
-                        );
-                    });
-                }
-                None => {}
-            }
-        }
+        // if let Some(profile) = &v.genesis_mining_proof.profile {
+        //     match &profile.autopay_instructions {
+        //         Some(list) => {
+        //             list.into_iter().for_each(|ins| {
+        //                 let autopay_instruction =
+        //                     transaction_builder::encode_autopay_create_instruction_script_function(
+        //                         ins.uid.unwrap(),
+        //                         ins.type_move.unwrap(),
+        //                         ins.destination,
+        //                         ins.duration_epochs.unwrap(),
+        //                         ins.value_move.unwrap(),
+        //                     )
+        //                     .into_script_function();
+        //                 exec_script_function(
+        //                     session,
+        //                     v.address,
+        //                     &autopay_instruction,
+        //                 );
+        //             });
+        //         }
+        //         None => {}
+        //     }
+        // }
 
         //////// 0L ////////
         exec_function(
@@ -583,7 +584,7 @@ fn create_and_initialize_owners_operators(
             ]),
         );
 
-                exec_function(
+        exec_function(
             session,
             "Vouch",
             "init",
@@ -1040,16 +1041,31 @@ fn fund_operators(
     for v in validators {
         let diem_root_address = account_config::diem_root_address();
         // give the operator balance to be able to send txs for owner, e.g. tower-builder
+        // V6 TODO: this is no longer necessary
+
+        // exec_function(
+        //     session,
+        //     // log_context,
+        //     "DiemAccount",
+        //     "genesis_fund_operator",
+        //     vec![],
+        //     serialize_values(&vec![
+        //         MoveValue::Signer(diem_root_address),
+        //         MoveValue::Signer(v.address),
+        //         MoveValue::Address(v.operator_address),
+        //     ]),
+        // );
+
+        // fund the pledge account
         exec_function(
             session,
             // log_context,
-            "DiemAccount",
-            "genesis_fund_operator",
+            "PledgeAccounts",
+            "genesis_infra_escrow_pledge",
             vec![],
             serialize_values(&vec![
                 MoveValue::Signer(diem_root_address),
                 MoveValue::Signer(v.address),
-                MoveValue::Address(v.operator_address),
             ]),
         );
     }

@@ -30,7 +30,7 @@ module EpochBoundary {
     use DiemFramework::DonorDirected;
     use DiemFramework::MusicalChairs;
     use DiemFramework::InfraEscrow;
-    // use DiemFramework::Debug::print;
+    use DiemFramework::Debug::print;
 
 
     //// V6 ////
@@ -107,6 +107,9 @@ module EpochBoundary {
         // Now we need to collect coins from infrastructure escrow, to temporarily fund the network fee address for the next set.
         // Note in step 
         InfraEscrow::epoch_boundary_collection(vm, reward * Vector::length(&proposed_set));
+
+        let fees = TransactionFee::get_fees_collected();
+        print(&fees);
 
         // print(&800900);
 
@@ -228,6 +231,9 @@ module EpochBoundary {
 
             // charge the validators for the proof of fee in advance of the epoch
             DiemAccount::vm_multi_pay_fee(vm, &auction_winners, price, &b"proof of fee");
+
+            let fees = TransactionFee::get_fees_collected();
+            print(&fees);
             // print(&800800);
 
             proposed_set = auction_winners

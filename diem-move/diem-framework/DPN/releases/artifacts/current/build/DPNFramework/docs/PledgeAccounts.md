@@ -22,6 +22,7 @@
 -  [Function `find_index_of_vote`](#0x1_PledgeAccounts_find_index_of_vote)
 -  [Function `tally_vote`](#0x1_PledgeAccounts_tally_vote)
 -  [Function `dissolve_beneficiary_project`](#0x1_PledgeAccounts_dissolve_beneficiary_project)
+-  [Function `genesis_infra_escrow_pledge`](#0x1_PledgeAccounts_genesis_infra_escrow_pledge)
 -  [Function `user_pledge_tx`](#0x1_PledgeAccounts_user_pledge_tx)
 -  [Function `pledge_at_idx`](#0x1_PledgeAccounts_pledge_at_idx)
 -  [Function `get_user_pledge_amount`](#0x1_PledgeAccounts_get_user_pledge_amount)
@@ -32,7 +33,8 @@
 -  [Function `test_single_withdrawal`](#0x1_PledgeAccounts_test_single_withdrawal)
 
 
-<pre><code><b>use</b> <a href="Diem.md#0x1_Diem">0x1::Diem</a>;
+<pre><code><b>use</b> <a href="CoreAddresses.md#0x1_CoreAddresses">0x1::CoreAddresses</a>;
+<b>use</b> <a href="Diem.md#0x1_Diem">0x1::Diem</a>;
 <b>use</b> <a href="DiemAccount.md#0x1_DiemAccount">0x1::DiemAccount</a>;
 <b>use</b> <a href="DiemConfig.md#0x1_DiemConfig">0x1::DiemConfig</a>;
 <b>use</b> <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Errors.md#0x1_Errors">0x1::Errors</a>;
@@ -864,6 +866,36 @@
   // print(&bp.revoked);
 
   // otherwise leave the information <b>as</b>-is for reference purposes
+}
+</code></pre>
+
+
+
+</details>
+
+<a name="0x1_PledgeAccounts_genesis_infra_escrow_pledge"></a>
+
+## Function `genesis_infra_escrow_pledge`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="PledgeAccounts.md#0x1_PledgeAccounts_genesis_infra_escrow_pledge">genesis_infra_escrow_pledge</a>(vm: &signer, account: &signer)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="PledgeAccounts.md#0x1_PledgeAccounts_genesis_infra_escrow_pledge">genesis_infra_escrow_pledge</a>(vm: &signer, account: &signer) <b>acquires</b> <a href="PledgeAccounts.md#0x1_PledgeAccounts_MyPledges">MyPledges</a>, <a href="PledgeAccounts.md#0x1_PledgeAccounts_BeneficiaryPolicy">BeneficiaryPolicy</a> {
+  // TODO: add genesis time here, once the timestamp genesis issue is fixed.
+  <a href="CoreAddresses.md#0x1_CoreAddresses_assert_vm">CoreAddresses::assert_vm</a>(vm);
+
+  <b>let</b> addr = <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Signer.md#0x1_Signer_address_of">Signer::address_of</a>(account);
+
+  <b>let</b> coin = <a href="DiemAccount.md#0x1_DiemAccount_vm_withdraw">DiemAccount::vm_withdraw</a>&lt;<a href="GAS.md#0x1_GAS">GAS</a>&gt;(vm, addr, 1000000);
+  <a href="PledgeAccounts.md#0x1_PledgeAccounts_save_pledge">save_pledge</a>(account, @VMReserved, coin);
 }
 </code></pre>
 

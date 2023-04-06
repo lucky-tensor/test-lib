@@ -4,7 +4,7 @@
 script {
     use DiemFramework::TransactionFee;
 
-    fun main(vm: signer, _: signer) {
+    fun main(_vm: signer, _: signer) {
         assert!(TransactionFee::get_fees_collected() == 0, 735701);
     }
 }

@@ -77,15 +77,15 @@
     ///////// SETTLE ACCOUNTS OF PREVIOUS EPOCH /////////
     // Update all slow wallet limits
     <a href="DiemAccount.md#0x1_DiemAccount_slow_wallet_epoch_drip">DiemAccount::slow_wallet_epoch_drip</a>(vm, <a href="Globals.md#0x1_Globals_get_unlock">Globals::get_unlock</a>()); // todo
-    print(&800100);
+    // print(&800100);
 
     // Check compliance of nodes
     <b>let</b> height_start = <a href="Epoch.md#0x1_Epoch_get_timer_height_start">Epoch::get_timer_height_start</a>();
-    print(&800200);
+    // print(&800200);
     <b>let</b> (outgoing_compliant_set, _new_set_size) =
         <a href="MusicalChairs.md#0x1_MusicalChairs_stop_the_music">MusicalChairs::stop_the_music</a>(vm, height_start, height_now);
 
-    print(&800300);
+    // print(&800300);
 
     // get the total fees produced before we start spending them.
     <b>let</b> total_fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
@@ -97,14 +97,14 @@
     <a href="EpochBoundary.md#0x1_EpochBoundary_process_fullnodes">process_fullnodes</a>(vm, reward);
     // print(&800400);
 
-    print(&800500);
+    // print(&800500);
 
     <a href="EpochBoundary.md#0x1_EpochBoundary_process_validators">process_validators</a>(vm, reward, &outgoing_compliant_set, total_fees);
-    print(&800600);
+    // print(&800600);
 
     // process the non performing nodes: jail
     <a href="EpochBoundary.md#0x1_EpochBoundary_process_jail">process_jail</a>(vm, &outgoing_compliant_set);
-    print(&800600);
+    // print(&800600);
     // EVERYONE SHOULD BE PAID UP AT THIS POINT
     // after everyone is paid from the chain's Fee account
     // we can burn the remainder.
@@ -117,10 +117,10 @@
 
     <b>let</b> proposed_set = <a href="EpochBoundary.md#0x1_EpochBoundary_propose_new_set">propose_new_set</a>(vm, &outgoing_compliant_set);
 
-    print(&800700);
+    // print(&800700);
 
     <a href="EpochBoundary.md#0x1_EpochBoundary_root_service_billing">root_service_billing</a>(vm);
-    print(&801000);
+    // print(&801000);
 
     // <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(vm, proposed_set, outgoing_compliant_set, height_now);
     // print(&801100);
@@ -135,12 +135,15 @@
     // Note in step
     <a href="InfraEscrow.md#0x1_InfraEscrow_epoch_boundary_collection">InfraEscrow::epoch_boundary_collection</a>(vm, reward * <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector_length">Vector::length</a>(&proposed_set));
 
-    print(&800900);
+    <b>let</b> fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
+    print(&fees);
+
+    // print(&800900);
 
 
 
     <a href="EpochBoundary.md#0x1_EpochBoundary_reset_counters">reset_counters</a>(vm, proposed_set, outgoing_compliant_set, height_now);
-    print(&8001000);
+    // print(&8001000);
 
 }
 </code></pre>
@@ -228,7 +231,6 @@
 ) {
     // Process outgoing validators:
     // Distribute Transaction fees and subsidy payments <b>to</b> all outgoing validators
-            print(&800501);
 
     <b>if</b> (<a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector_is_empty">Vector::is_empty</a>&lt;<b>address</b>&gt;(outgoing_compliant_set)) <b>return</b>;
 
@@ -237,15 +239,12 @@
     <b>if</b> (subsidy_units &gt; 0 && !<a href="RecoveryMode.md#0x1_RecoveryMode_is_recovery">RecoveryMode::is_recovery</a>()) {
         <a href="Subsidy.md#0x1_Subsidy_process_fees">Subsidy::process_fees</a>(vm, outgoing_compliant_set);
     };
-            print(&800502);
 
     // after everyone is paid from the chain's Fee account
     // we can burn the excess fees from the epoch
     <a href="Burn.md#0x1_Burn_reset_ratios">Burn::reset_ratios</a>(vm);
-                    print(&800503);
 
     <a href="Burn.md#0x1_Burn_epoch_burn_fees">Burn::epoch_burn_fees</a>(vm, fees_collected);
-                    print(&800504);
 
 }
 </code></pre>
@@ -338,6 +337,9 @@
 
         // charge the validators for the proof of fee in advance of the epoch
         <a href="DiemAccount.md#0x1_DiemAccount_vm_multi_pay_fee">DiemAccount::vm_multi_pay_fee</a>(vm, &auction_winners, price, &b"proof of fee");
+
+        <b>let</b> fees = <a href="TransactionFee.md#0x1_TransactionFee_get_fees_collected">TransactionFee::get_fees_collected</a>();
+        print(&fees);
         // print(&800800);
 
         proposed_set = auction_winners

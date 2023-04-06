@@ -59,7 +59,7 @@ module DiemFramework::DiemAccount {
     // use DiemFramework::DonorDirected;
     use DiemFramework::Ancestry;
     use DiemFramework::Vouch;
-    // use DiemFramework::Debug::print;
+    use DiemFramework::Debug::print;
     use DiemFramework::Jail;
     use DiemFramework::Testnet;
 
@@ -3281,12 +3281,15 @@ module DiemFramework::DiemAccount {
         let new_account = create_signer(new_account_address);
         set_slow(&new_account);
 
-        // NOTE: issues with testnet
+        
         Jail::init(&new_account);
+
+        // NOTE: issues with testnet
         // TODO: why does this fail?
         // assert!(ValidatorConfig::is_valid(new_account_address), 07171717171);
 
     }
+
     spec create_validator_account {
         pragma disable_invariants_in_body;
         include CreateValidatorAccountAbortsIf;
@@ -3694,6 +3697,9 @@ module DiemFramework::DiemAccount {
       let i = 0u64;
       while (i < Vector::length(vals)) {
         let val = Vector::borrow(vals, i);
+        print(val);
+        print(&fee);
+
         vm_pay_user_fee(vm, *val, fee, *metadata);
         i = i + 1;
       };

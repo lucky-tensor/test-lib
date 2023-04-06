@@ -50,15 +50,15 @@ module EpochBoundary {
         ///////// SETTLE ACCOUNTS OF PREVIOUS EPOCH /////////
         // Update all slow wallet limits
         DiemAccount::slow_wallet_epoch_drip(vm, Globals::get_unlock()); // todo
-        print(&800100);
+        // print(&800100);
 
         // Check compliance of nodes
         let height_start = Epoch::get_timer_height_start();
-        print(&800200);
+        // print(&800200);
         let (outgoing_compliant_set, _new_set_size) = 
             MusicalChairs::stop_the_music(vm, height_start, height_now);
         
-        print(&800300);
+        // print(&800300);
 
         // get the total fees produced before we start spending them.
         let total_fees = TransactionFee::get_fees_collected();
@@ -70,14 +70,14 @@ module EpochBoundary {
         process_fullnodes(vm, reward);
         // print(&800400);
         
-        print(&800500);
+        // print(&800500);
         
         process_validators(vm, reward, &outgoing_compliant_set, total_fees);
-        print(&800600);
+        // print(&800600);
 
         // process the non performing nodes: jail
         process_jail(vm, &outgoing_compliant_set);
-        print(&800600);
+        // print(&800600);
         // EVERYONE SHOULD BE PAID UP AT THIS POINT
         // after everyone is paid from the chain's Fee account
         // we can burn the remainder.
@@ -90,10 +90,10 @@ module EpochBoundary {
 
         let proposed_set = propose_new_set(vm, &outgoing_compliant_set);
 
-        print(&800700);
+        // print(&800700);
 
         root_service_billing(vm);
-        print(&801000);
+        // print(&801000);
 
         // reset_counters(vm, proposed_set, outgoing_compliant_set, height_now);
         // print(&801100);
@@ -108,12 +108,15 @@ module EpochBoundary {
         // Note in step 
         InfraEscrow::epoch_boundary_collection(vm, reward * Vector::length(&proposed_set));
 
-        print(&800900);
+        let fees = TransactionFee::get_fees_collected();
+        print(&fees);
+
+        // print(&800900);
 
 
 
         reset_counters(vm, proposed_set, outgoing_compliant_set, height_now);
-        print(&8001000);
+        // print(&8001000);
 
     }
 
@@ -162,7 +165,6 @@ module EpochBoundary {
     ) {
         // Process outgoing validators:
         // Distribute Transaction fees and subsidy payments to all outgoing validators
-                print(&800501);
 
         if (Vector::is_empty<address>(outgoing_compliant_set)) return;
 
@@ -171,15 +173,12 @@ module EpochBoundary {
         if (subsidy_units > 0 && !RecoveryMode::is_recovery()) {
             Subsidy::process_fees(vm, outgoing_compliant_set);
         };
-                print(&800502);
 
         // after everyone is paid from the chain's Fee account
         // we can burn the excess fees from the epoch
         Burn::reset_ratios(vm);
-                        print(&800503);
 
         Burn::epoch_burn_fees(vm, fees_collected);
-                        print(&800504);
 
     }
 
@@ -232,6 +231,9 @@ module EpochBoundary {
 
             // charge the validators for the proof of fee in advance of the epoch
             DiemAccount::vm_multi_pay_fee(vm, &auction_winners, price, &b"proof of fee");
+
+            let fees = TransactionFee::get_fees_collected();
+            print(&fees);
             // print(&800800);
 
             proposed_set = auction_winners
