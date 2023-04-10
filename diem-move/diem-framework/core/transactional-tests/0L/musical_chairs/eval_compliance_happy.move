@@ -4,8 +4,6 @@
 // ALICE is a validator, validated successfully
 // put in the lowest bid, but there are enough seats to include her.
 
-//# block --proposer Alice --time 1 --round 0
-
 //# run --admin-script --signers DiemRoot Alice
 script {
     use DiemFramework::Mock;
