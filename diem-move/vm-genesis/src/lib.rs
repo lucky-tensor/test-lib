@@ -1041,20 +1041,20 @@ fn fund_operators(
     for v in validators {
         let diem_root_address = account_config::diem_root_address();
         // give the operator balance to be able to send txs for owner, e.g. tower-builder
-        // V6 TODO: this is no longer necessary
+        // V6 TODO: this is no longer necessary. But it is used in the test framework.
 
-        // exec_function(
-        //     session,
-        //     // log_context,
-        //     "DiemAccount",
-        //     "genesis_fund_operator",
-        //     vec![],
-        //     serialize_values(&vec![
-        //         MoveValue::Signer(diem_root_address),
-        //         MoveValue::Signer(v.address),
-        //         MoveValue::Address(v.operator_address),
-        //     ]),
-        // );
+        exec_function(
+            session,
+            // log_context,
+            "DiemAccount",
+            "genesis_fund_operator",
+            vec![],
+            serialize_values(&vec![
+                MoveValue::Signer(diem_root_address),
+                MoveValue::Signer(v.address),
+                MoveValue::Address(v.operator_address),
+            ]),
+        );
 
         // fund the pledge account
         exec_function(
