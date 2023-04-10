@@ -5,6 +5,7 @@
 
 mod genesis_context;
 use anyhow::Error;
+use diem_logger::info;
 use ol_types::legacy_recovery::{ValStateRecover, OperRecover, LegacyRecovery};
 use std::env;
 use crate::genesis_context::GenesisStateView;
@@ -97,7 +98,7 @@ pub fn encode_genesis_change_set(
     chain_id: ChainId,
     enable_parallel_execution: bool,
 ) -> ChangeSet {
-    dbg!(&chain_id); //////// 0L ////////
+    // dbg!(&chain_id); //////// 0L ////////
 
     let mut stdlib_modules = Vec::new();
     // create a data view for move_vm
@@ -229,7 +230,7 @@ pub fn encode_recovery_genesis_changeset(
     //////// 0L ////////
     
     diem_logger::info!("OK create_and_initialize_root_accounts =============== ");
-    // println!("OK create_and_initialize_main_accounts =============== ");
+    // info!("OK create_and_initialize_main_accounts =============== ");
     let genesis_env = get_env();
     diem_logger::info!("Initializing with env: {}", genesis_env);
     if genesis_env != "prod" {
@@ -490,7 +491,7 @@ fn create_and_initialize_owners_operators(
 ) {
     let diem_root_address = account_config::diem_root_address();
 
-    println!("0 ======== Create Validator Owner and Operator Accounts"); //////// 0L ////////
+    info!("0 ======== Create Validator Owner and Operator Accounts"); //////// 0L ////////
 
     let mut owners = vec![];
     let mut owner_names = vec![];
@@ -503,7 +504,7 @@ fn create_and_initialize_owners_operators(
     let mut full_node_network_addresses = vec![];
 
     for v in validators {
-        println!("Address: {:?}", &v.address);
+        info!("Address: {:?}", &v.address);
         owners.push(MoveValue::Signer(v.address));
         owner_names.push(MoveValue::vector_u8(v.name.clone()));
         owner_auth_keys.push(MoveValue::vector_u8(v.auth_key.to_vec()));
@@ -680,9 +681,9 @@ fn recovery_owners_operators(
     // key prefix and account address. Internally move then computes the auth key as auth key
     // prefix || address. Because of this, the initial auth key will be invalid as we produce the
     // account address from the name and not the public key.
-    println!("0 ======== Create Owner Accounts");
+    info!("0 ======== Create Owner Accounts");
     for i in val_assignments {
-        println!("account: {:?}", i.val_account);
+        info!("account: {:?}", i.val_account);
         // TODO: why does this need to be derived from human name?
         // let owner_address = staged_owner_auth_key.derived_address();
         let create_owner_script =
@@ -721,7 +722,7 @@ fn recovery_owners_operators(
         );
     }
 
-    println!("1 ======== Create OP Accounts");
+    info!("1 ======== Create OP Accounts");
     // Create accounts for each validator operator
     for i in operator_recovers {
         let create_operator_script =
@@ -739,7 +740,7 @@ fn recovery_owners_operators(
         );
     }
 
-    println!("2 ======== Link owner to OP");
+    info!("2 ======== Link owner to OP");
     // Set the validator operator for each validator owner
     for val in val_assignments {
         let create_operator_script =
@@ -755,7 +756,7 @@ fn recovery_owners_operators(
         );
     }
 
-    println!("3 ======== OP sends network info to Owner config");
+    info!("3 ======== OP sends network info to Owner config");
     // Set the validator operator configs for each owner
     for i in operator_recovers {
         let create_operator_script =
@@ -773,7 +774,7 @@ fn recovery_owners_operators(
         );
     }
 
-    println!("4 ======== Add owner to validator set");
+    info!("4 ======== Add owner to validator set");
     // Add each validator to the validator set
     for i in val_set {
         // let staged_owner_auth_key = AuthenticationKey::ed25519(owner_key.as_ref().unwrap());
@@ -1036,7 +1037,7 @@ fn fund_operators(
   session: &mut Session<StateViewCache<GenesisStateView>>,
   validators: &[Validator],
 ) {
-    println!("======== Fund operators");
+    info!("======== Fund operators");
 
     for v in validators {
         let diem_root_address = account_config::diem_root_address();
