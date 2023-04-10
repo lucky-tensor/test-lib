@@ -3,9 +3,9 @@
 
 // Alice is a Validator
 // CommunityA is a community wallet.
-// We are checking that by default, CommunityA does not receive any funds from Alice's burn, because she has not opted to recycle.
-// Tests that Alice burns the cost-to-exist on every epoch, 
-// (is NOT sending to community index)
+// CommunityA should receive some matching donations from Alice's rewards.
+
+
 
 //////// SETS community send, recycles burns.
 

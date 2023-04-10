@@ -1,107 +1,94 @@
-//# init --validators Alice
-//# --addresses Bob=0x2e3a0b7a741dae873bf0f203a82dfd52
-//# --private-keys Bob=e1acb70a23dba96815db374b86c5ae96d6a9bc5fff072a7a8e55a1c27c1852d8
+//# init --validators Alice Bob Dave CommunityA CommunityB
 
-//# run --signers DiemRoot
-//#     --args @Bob
-//#     -- 0x1::DiemAccount::test_harness_create_user
-
-// V6: Deprecated since Proof of Fee changes changes Cost To Enter.
 
 // Alice is a Validator
-// Bob is a community wallet.
-// We are checking that by default, Bob does not receive any funds from Alice's burn, because she has not opted to recycle.
+// CommunityA is a community wallet.
+// We are checking that by default, CommunityA does not receive any funds from Alice's burn, because she has not opted to recycle.
 // Tests that Alice burns the cost-to-exist on every epoch, 
 // (is NOT sending to community index)
 
+//////// SETS community send, recycles burns.
+
 //# run --admin-script --signers DiemRoot Alice
-script {    
-    use DiemFramework::TowerState;
-    use DiemFramework::Diem;
-    use DiemFramework::GAS::GAS;
-    use DiemFramework::Burn;
-    use DiemFramework::Debug::print;
-    
+script {
+  use DiemFramework::Burn;
+  use DiemFramework::Diem;
+  use DiemFramework::GAS::GAS;
+  
     fun main(_dr: signer, sender: signer) {
-        // Alice is the only one that can update her mining stats. 
-        // Hence this first transaction.
-        let mk_cap_genesis = Diem::market_cap<GAS>();
-        print(&mk_cap_genesis);
-
-        // Validator and Operator payment 10m & 1M 
-        // for Alice only
-        // (for operator which is not explicit in tests)
-        let root = 10000000; // root gets payment at genesis for testing
-        let alice = 10000000; // Alice gets payment at genesis
-        let bob = 1000000; // Bob gets payment on account creation from root
-        assert!(mk_cap_genesis == root + alice + bob, 7357000);
-
-        TowerState::test_helper_mock_mining(&sender, 5);
-        
-        // alice's preferences are set to always burn
-        Burn::set_send_community(&sender, false);
+      assert!(Diem::market_cap<GAS>() == 77500000, 7357000);
+      // Not recycling burns
+      Burn::set_send_community(&sender, false);
     }
 }
-//check: EXECUTED
 
 //# run --admin-script --signers DiemRoot DiemRoot
 script {
-    use DiemFramework::Stats;
-    use Std::Vector;
-    use DiemFramework::Cases;
+    use DiemFramework::Mock;
+    use DiemFramework::DiemAccount;
+    use DiemFramework::TransactionFee;
+    use DiemFramework::GAS::GAS;
 
-    fun main(dr: signer, _account: signer) {
-        let dr = &dr;
-        let voters = Vector::singleton<address>(@Alice);
-        let i = 1;
-        while (i < 16) {
-            // Mock the validator doing work for 15 blocks, and stats being updated.
-            Stats::process_set_votes(dr, &voters);
-            i = i + 1;
-        };
 
-        assert!(Cases::get_case(dr, @Alice, 0, 15) == 1, 7357300103011000);
+    fun main(vm: signer, _: signer) {
+        // simulate alice making a fee
+        let c = DiemAccount::vm_withdraw<GAS>(&vm, @Alice, 2000000);
+        TransactionFee::pay_fee_and_track(@Alice, c);
+
+        let start_height = 0;
+        let end_height = 100;
+        Mock::mock_case_1(&vm, @Alice, start_height, end_height);
     }
 }
 
-//# run --admin-script --signers DiemRoot Bob
+
+
+
+//# run --admin-script --signers DiemRoot CommunityA
 script {
-    use DiemFramework::Wallet;
+    use DiemFramework::DonorDirected;
     use Std::Vector;
-    use DiemFramework::GAS::GAS;
-    use Std::Signer;
     use DiemFramework::DiemAccount;
 
-    fun main(_dr: signer, sender: signer) {
-      Wallet::set_comm(&sender);
-      let bal = DiemAccount::balance<GAS>(Signer::address_of(&sender));
-      DiemAccount::init_cumulative_deposits(&sender, bal);
-      let list = Wallet::get_comm_list();
+    fun main(_dr: signer, sponsor: signer) {
+      DonorDirected::init_donor_directed(&sponsor, @Alice, @Bob, @Dave, 2);
+      DonorDirected::finalize_init(&sponsor);
+      let list = DonorDirected::get_root_registry();
       assert!(Vector::length(&list) == 1, 7357001);
+      // DiemAccount::vm_migrate_cumulative_deposits(&dr, &sponsor, true);
+      assert!(DiemAccount::is_init_cumu_tracking(@CommunityA), 7357002);
+
     }
 }
+// check: EXECUTED
 
 //# run --admin-script --signers DiemRoot DiemRoot
 script {
   use DiemFramework::DiemAccount;
   use DiemFramework::GAS::GAS;
+  // use DiemFramework::Debug::print;
 
   fun main(vm: signer, _account: signer) {
-    // send to community wallet Bob
-    DiemAccount::vm_make_payment_no_limit<GAS>(@Alice, @Bob, 1000000, x"", x"", &vm);
+    // let bal = DiemAccount::balance<GAS>(@Alice);
+    // print(&bal);
+    
 
-    let bal = DiemAccount::balance<GAS>(@Bob);
-    assert!(bal == 1000000, 7357003);
+    // send to community wallet Bob
+    DiemAccount::vm_make_payment_no_limit<GAS>(@Alice, @CommunityA, 1000000, x"", x"", &vm);
+
+    let bal = DiemAccount::balance<GAS>(@Alice);
+    // print(&bal);
+    assert!(bal == 7000000, 7357003);
   }
 }
 
-//////////////////////////////////////////////
-//// Trigger reconfiguration at 61 seconds ////
+////////////////////////////////////////////
+// Trigger reconfiguration at 61 seconds ////
 //# block --proposer Alice --time 61000000 --round 15
 
-////// TEST RECONFIGURATION IS HAPPENING /////
+//// TEST RECONFIGURATION IS HAPPENING /////
 // check: NewEpochEvent
-//////////////////////////////////////////////
+////////////////////////////////////////////
 
 
 //# run --admin-script --signers DiemRoot DiemRoot
@@ -109,21 +96,39 @@ script {
   use DiemFramework::DiemAccount;
   use DiemFramework::GAS::GAS;
   use DiemFramework::Diem;
-  use DiemFramework::Debug::print;
+  use DiemFramework::Burn;
+  use Std::Vector;
 
   fun main() {
+
+    let (b, r) = Burn::get_lifetime_tracker();
+    assert!(b == 1000000, 7357004);
+    assert!(r == 0, 7357005);
+
+    let (addr, deps , ratios) = Burn::get_ratios();
+    assert!(Vector::length(&addr) == 1, 7357006);
+    assert!(Vector::length(&deps) == 1, 7357007);
+    assert!(Vector::length(&ratios) == 1, 7357008);
+
     let new_cap = Diem::market_cap<GAS>();
-    let cap_at_start = 21000000u128; //10M + 1M
-    let burn = 148000000u128; //1M
-    let subsidy = 296000000u128;
-    print(&new_cap);
+    // no change to market cap
 
-    // should not change bob's balance, since Alice did not opt to seend to community index.
-    let bal = DiemAccount::balance<GAS>(@Bob);
-    assert!(bal == 1000000, 7357004);
+    // alice balance should increase because of subsidy
+    let alice_old_balance = 7000000;
+    let alice_new = DiemAccount::balance<GAS>(@Alice);
 
-    assert!(new_cap == (cap_at_start + subsidy - burn), 7357004);
+    assert!(alice_new > alice_old_balance, 7357009);
 
+    let bal = DiemAccount::balance<GAS>(@CommunityA);
+
+    // no change in community wallet balance
+    let old_bal_comm_a = 11000000;
+    assert!(bal == old_bal_comm_a, 7357010);
+
+    let cap_at_start = 77500000;
+
+    // supply of coins should be less
+    assert!(new_cap < cap_at_start, 7357011);
 
   }
 }
