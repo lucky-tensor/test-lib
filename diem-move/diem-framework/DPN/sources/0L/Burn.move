@@ -79,6 +79,39 @@ module Burn {
     Diem::vm_burn_this_coin(vm, coins); 
   }
 
+  /// initialize, usually for testnet.
+  public fun initialize(vm: &signer) {
+    CoreAddresses::assert_vm(vm);
+
+    move_to<BurnState>(vm, BurnState {
+        addr: Vector::empty(),
+        deposits: Vector::empty(),
+        ratio: Vector::empty(),
+        lifetime_burned: 0,
+        lifetime_recycled: 0,
+      })
+  }
+
+  /// Migration script for hard forks
+  public fun vm_migration(vm: &signer, 
+    addr_list: vector<address>,
+    deposit_vec: vector<u64>,
+    ratios_vec: vector<FixedPoint32::FixedPoint32>,
+    lifetime_burned: u64, // these get reset on final supply V6. Future upgrades need to decide what to do with this
+    lifetime_recycled: u64,
+  ) {
+
+    // TODO: assert genesis when timesetamp is working again.
+    CoreAddresses::assert_vm(vm);
+
+    move_to<BurnState>(vm, BurnState {
+        addr: addr_list,
+        deposits: deposit_vec,
+        ratio: ratios_vec,
+        lifetime_burned,
+        lifetime_recycled,
+      })
+  }
 
   public fun reset_ratios(vm: &signer) acquires BurnState {
     CoreAddresses::assert_diem_root(vm);
@@ -117,7 +150,7 @@ module Burn {
       d.addr = list;
       d.deposits = deposit_vec;
       d.ratio = ratios_vec;
-    } else {
+    } else { // hot migration
       move_to<BurnState>(vm, BurnState {
         addr: list,
         deposits: deposit_vec,

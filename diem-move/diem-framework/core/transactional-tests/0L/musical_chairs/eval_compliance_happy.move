@@ -10,7 +10,7 @@
 script {
     use DiemFramework::Mock;
     use DiemFramework::MusicalChairs;
-    use DiemFramework::Debug::print;
+    // use DiemFramework::Debug::print;
     use Std::FixedPoint32;
     use Std::Vector;
 

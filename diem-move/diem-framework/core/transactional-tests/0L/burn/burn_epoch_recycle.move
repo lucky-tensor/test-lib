@@ -14,13 +14,11 @@ script {
   use DiemFramework::Burn;
   use DiemFramework::Diem;
   use DiemFramework::GAS::GAS;
-  // use DiemFramework::Debug::print;
   
     fun main(_dr: signer, sender: signer) {
-      // let new_cap = Diem::market_cap<GAS>();
-      // print(&new_cap);
-    Burn::set_send_community(&sender, true);
-  }
+      assert!(Diem::market_cap<GAS>() == 77500000, 7357000);
+      Burn::set_send_community(&sender, true);
+    }
 }
 
 //# run --admin-script --signers DiemRoot DiemRoot
@@ -132,7 +130,7 @@ script {
     // print(&bal);
     assert!(bal > 11000000, 7357010);
 
-    let cap_at_start = 65000000;
+    let cap_at_start = 77500000;
 
     // there is NO MINTING in FINAL SUPPLY, so the market cap should be the same
     assert!(new_cap == cap_at_start, 7357011);
