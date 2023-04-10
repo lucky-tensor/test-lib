@@ -212,10 +212,7 @@ module Burn {
 
   fun recycle(vm: &signer, payer: address, coin: &mut Diem<GAS>) acquires BurnState {
     let list = { get_address_list() }; // NOTE devs, the added scope drops the borrow which is used below.
-
     let len = Vector::length<address>(&list);
-
-
     let total_coin_value_to_recycle = Diem::value(coin);
 
     // There could be errors in the array, and underpayment happen.
@@ -239,6 +236,17 @@ module Burn {
       );
       value_sent = value_sent + amount_to_payee;      
       i = i + 1;
+    };
+
+    // if there is anything remaining it's a superman 3 issue
+    // so we send it back to the transaction fee account
+    // makes it easier to track since we know no burns should be happening.
+    // which is what would happen if the coin didn't get emptied here
+    let remainder_amount = Diem::value(coin);
+    if (remainder_amount > 0) {
+      let last_coin = Diem::withdraw(coin, remainder_amount);
+      // use pay_fee which doesn't track the sender, so we're not double counting the receipts, even though it's a small amount.
+      TransactionFee::pay_fee(last_coin);
     };
 
     // update the root state tracker
