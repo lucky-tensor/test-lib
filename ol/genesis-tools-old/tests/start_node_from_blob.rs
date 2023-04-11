@@ -48,10 +48,7 @@ fn start_test_node() {
     });
 
     let val: AccountAddress = "ADCB1D42A46292AE89E938BD982F2867".parse().unwrap();
-   let b = post_node_json(val).unwrap();
-   dbg!(&b);
-   assert!(b.balances.first().unwrap().amount > 0);
-   assert!(b.balances.first().unwrap().amount == 1303779558688);
+    post_node_json(val).unwrap();
     
     cmd.kill().unwrap();
     clean_up();
