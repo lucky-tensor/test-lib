@@ -2,26 +2,13 @@
 
 #![allow(clippy::never_loop)]
 
-
-
 use crate::wizard;
 use abscissa_core::{status_info, status_ok, Command, Options, Runnable};
-
 use diem_types::chain_id::NamedChain;
 use diem_types::{waypoint::Waypoint};
-
-
-
-
-
-
-
 use reqwest::Url;
-
 use std::process::exit;
 use std::{path::PathBuf};
-
-
 
 /// `validator wizard` subcommand
 #[derive(Command, Debug, Default, Options)]
