@@ -6,7 +6,7 @@
 mod genesis_context;
 use anyhow::Error;
 use diem_logger::info;
-use ol_types::legacy_recovery::{ValStateRecover, OperRecover, LegacyRecovery};
+use ol_types::{legacy_recovery::{ValStateRecover, OperRecover, LegacyRecovery}, OLProgress};
 use std::env;
 use crate::genesis_context::GenesisStateView;
 use diem_crypto::{
@@ -50,6 +50,8 @@ use transaction_builder::encode_create_designated_dealer_script_function;
 //////// 0L ////////
 use diem_global_constants::{GENESIS_VDF_SECURITY_PARAM, genesis_delay_difficulty};
 pub use ol_types::{config::IS_PROD, genesis_proof::GenesisMiningProof};
+use indicatif::ProgressIterator;
+
 
 // The seed is arbitrarily picked to produce a consistent key. XXX make this more formal?
 const GENESIS_SEED: [u8; 32] = [42; 32];
@@ -196,15 +198,18 @@ pub fn encode_genesis_change_set(
 //                     But, still needs third check/review from another person.
 // Reason, the diem `fn encode_genesis_change_set` which we copy and modify to
 // create this fn, changed significantly.
+/// Pipeline for creating genesis from recovery snapshot
 //////// 0L ////////
 pub fn encode_recovery_genesis_changeset(
     val_assignments: &[ValStateRecover],
     operator_recovers: &[OperRecover],
-    val_set: &[AccountAddress],
+    genesis_val_configs: &[Validator],
     chain: u8,
     append_users: bool,
     legacy_data: &[LegacyRecovery],
 ) -> Result<ChangeSet, Error> {
+    println!("Starting Genesis With Data Migration");
+
     let mut stdlib_modules = Vec::new();
     // create a data view for move_vm
     let mut state_view = GenesisStateView::new();
@@ -229,39 +234,50 @@ pub fn encode_recovery_genesis_changeset(
     );
     //////// 0L ////////
     
-    diem_logger::info!("OK create_and_initialize_root_accounts =============== ");
-    // info!("OK create_and_initialize_main_accounts =============== ");
+    OLProgress::complete("0x0 Account Created");
+
+    // println!("OK create_and_initialize_main_accounts =============== ");
     let genesis_env = get_env();
-    diem_logger::info!("Initializing with env: {}", genesis_env);
     if genesis_env != "prod" {
         initialize_testnet(&mut session);
+        OLProgress::complete(&format!("Flagging Testnet mode: [{}]", &genesis_env));
     }
 
-    // generate the genesis WriteSet
-    recovery_owners_operators(
-        &mut session, val_assignments, operator_recovers, val_set
-    );
-    diem_logger::info!("OK recovered validator accounts =============== ");
+    // At genesis, we don't assume the same validators are in the genesis
+    // plus, the validators may have changed their keys, or network addresses.
+    // so we just assume that we should create the account as usual, 
+    // and if the account already exists, then just update the configs.
+    create_and_initialize_owners_operators(&mut session, genesis_val_configs);
+    distribute_genesis_subsidy(&mut session);
+    OLProgress::complete(&format!("Initialized Genesis Validators [{}]",  genesis_val_configs.len()));
 
-        // Recover the user accounts
-    diem_logger::info!("Starting user migration... ");
+    // generate the genesis WriteSet
+    // TODO: this may be deprecated
+    recovery_owners_operators(&mut session, val_assignments, operator_recovers);
+    OLProgress::complete(&format!("Migrate legacy validator configs [{}]",  val_assignments.len()));
+
+    // Recover the user balances and data
+    // NOTE: 0L: this includes the balances of legacy validators.
     if append_users  {
-      migrate_end_users(&mut session, legacy_data).expect("failed to recover users");
+      migrate_end_users(&mut session, legacy_data)?;
+      OLProgress::complete(&format!("Migrated User Data [{}]", legacy_data.len()));
     }
 
     // Trigger reconfiguration so that the validator set is updated.
     // genesis cannot start without a reconfiguration event.
     reconfigure(&mut session);
+    OLProgress::complete("Reconfigured");
 
     let (mut changeset1, mut events1) = session.finish().unwrap();
 
     let state_view = GenesisStateView::new();
     let data_cache = StateViewCache::new(&state_view);
     let mut session = move_vm.new_session(&data_cache);
-
+    
     // Todo: not sure why we are publishing this again.
     publish_stdlib(&mut session, Modules::new(stdlib_modules.iter()));
 
+    OLProgress::complete("Published Stdlib");
 
     let (changeset2, events2) = session.finish().unwrap();
 
@@ -271,8 +287,10 @@ pub fn encode_recovery_genesis_changeset(
     let (write_set, events) = convert_changeset_and_events(changeset1, events1).unwrap();
 
     assert!(!write_set.iter().any(|(_, op)| op.is_deletion()));
+
     verify_genesis_write_set(&events);
-  
+    OLProgress::complete("Genesis transaction verified");
+
     Ok(ChangeSet::new(write_set, events))
 }
 
@@ -280,36 +298,24 @@ pub fn encode_recovery_genesis_changeset(
 
 fn migrate_end_users(session: &mut Session<StateViewCache<GenesisStateView>>, legacy_data: &[LegacyRecovery]) -> Result<u64, anyhow::Error>{
 
-  dbg!(&legacy_data.is_empty());
-
-  let filtered_data: Vec<&LegacyRecovery>= legacy_data.iter()
-    .filter(|d| {
+  let filtered_data: Vec<&LegacyRecovery>= legacy_data
+  .iter()
+  .filter(|d| {
         d.account.is_some() &&
         d.account != Some(AccountAddress::ZERO)
     })
     .collect();
 
-
-
     let mut total_balance_restored = 0u64;
-    for user in filtered_data {      
-
+    for user in filtered_data.iter()
+    .progress_with_style(OLProgress::bar())
+    .with_message("Migrating user data") {    
         let args = vec![
             // both the VM and the user signatures need to be mocked.
             MoveValue::Signer(account_config::diem_root_address()),
-            // MoveValue::Signer(user.account.unwrap_or_else(bail!("Account address is missing"))),
             MoveValue::Address(user.account.expect("Account address is missing")),
-            // MoveValue::Address(user.account_address.unwrap_or_else(bail!("Account address is missing"))),
             MoveValue::vector_u8(user.auth_key.expect("no authkey found").prefix().to_vec()),
-            // vector_u8(user.role.expect("no role found")),
             MoveValue::U64(user.balance.as_ref().expect("no balance").coin()),
-
-            // MoveValue::vector_u8(user.sequence_number.to_vec()),
-            // MoveValue::vector_u8(user.delegated_key_rotation_capability.to_vec()),
-            // MoveValue::vector_u8(user.delegated_withdrawal_capability.to_vec()),
-            // MoveValue::vector_u8(user.received_minters.to_vec()),
-            // MoveValue::vector_u8(user.sent_events.to_vec()),
-            // MoveValue::vector_u8(user.received_events.to_vec()),
         ];
 
         total_balance_restored = total_balance_restored + user.balance.as_ref().expect("no balance").coin();
@@ -322,6 +328,7 @@ fn migrate_end_users(session: &mut Session<StateViewCache<GenesisStateView>>, le
           serialize_values(&args)
         )
     }
+
     Ok(total_balance_restored)
 }
 
@@ -668,12 +675,13 @@ fn create_and_initialize_owners_operators(
 /// 
 /// Creates and initializes each validator owner and validator operator. This method creates all
 /// the required accounts, sets the validator operators for each validator owner, and sets the
+
 /// validator config on-chain.
 fn recovery_owners_operators(
     session: &mut Session<StateViewCache<GenesisStateView>>,
     val_assignments: &[ValStateRecover],
     operator_recovers: &[OperRecover],
-    val_set: &[AccountAddress],
+    // val_set: &[AccountAddress],
 ) {
     let diem_root_address = account_config::diem_root_address();
     // session.get_type_layout(TypeTag::Struct(a))
@@ -681,9 +689,9 @@ fn recovery_owners_operators(
     // key prefix and account address. Internally move then computes the auth key as auth key
     // prefix || address. Because of this, the initial auth key will be invalid as we produce the
     // account address from the name and not the public key.
-    info!("0 ======== Create Owner Accounts");
-    for i in val_assignments {
-        info!("account: {:?}", i.val_account);
+    // println!("0 ======== Create Owner Accounts");
+    for i in val_assignments.iter().progress_with_style(OLProgress::bar()).with_message("Create Owner Accounts") {
+        // println!("account: {:?}", i.val_account);
         // TODO: why does this need to be derived from human name?
         // let owner_address = staged_owner_auth_key.derived_address();
         let create_owner_script =
@@ -722,9 +730,9 @@ fn recovery_owners_operators(
         );
     }
 
-    info!("1 ======== Create OP Accounts");
+    // println!("1 ======== Create OP Accounts");
     // Create accounts for each validator operator
-    for i in operator_recovers {
+    for i in operator_recovers.iter().progress_with_style(OLProgress::bar()).with_message("Create Operator Accounts") {
         let create_operator_script =
             transaction_builder::encode_create_validator_operator_account_script_function(
                 0,
@@ -740,9 +748,9 @@ fn recovery_owners_operators(
         );
     }
 
-    info!("2 ======== Link owner to OP");
+    // println!("2 ======== Link owner to OP");
     // Set the validator operator for each validator owner
-    for val in val_assignments {
+    for val in val_assignments.iter().progress_with_style(OLProgress::bar()).with_message("Linking owners to operators") {
         let create_operator_script =
             transaction_builder::encode_set_validator_operator_script_function(
                 val.operator_delegated_account.to_vec(), 
@@ -756,9 +764,9 @@ fn recovery_owners_operators(
         );
     }
 
-    info!("3 ======== OP sends network info to Owner config");
+    // println!("3 ======== OP sends network info to Owner config");
     // Set the validator operator configs for each owner
-    for i in operator_recovers {
+    for i in operator_recovers.iter().progress_with_style(OLProgress::bar()).with_message("Set owner network configs") {
         let create_operator_script =
             transaction_builder::encode_register_validator_config_script_function(
                 i.validator_to_represent,
@@ -774,23 +782,7 @@ fn recovery_owners_operators(
         );
     }
 
-    info!("4 ======== Add owner to validator set");
-    // Add each validator to the validator set
-    for i in val_set {
-        // let staged_owner_auth_key = AuthenticationKey::ed25519(owner_key.as_ref().unwrap());
-        // let owner_address = staged_owner_auth_key.derived_address();
-        // // let owner_address = diem_config::utils::validator_owner_account_from_name(owner_name);
-        exec_function(
-            session,
-            "DiemSystem",
-            "add_validator",
-            vec![],
-            serialize_values(&vec![
-                MoveValue::Signer(diem_root_address),
-                MoveValue::Address(*i),
-            ]),
-        );
-    }
+    // NOTE: 0L: removed code which adds validators to validator set, since this is handled in the Move migration logic.
 }
 
 /// Publish the standard library.

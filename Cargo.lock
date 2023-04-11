@@ -10656,6 +10656,7 @@ dependencies = [
  "diem-vm",
  "diem-workspace-hack 0.1.0",
  "hex 0.4.3",
+ "indicatif 0.17.3",
  "move-binary-format 0.0.3 (git+https://github.com/0LNetworkCommunity/move-0L?rev=94e1039c9fdf1472c2c7775de43135d28dafc955)",
  "move-bytecode-utils 0.1.0 (git+https://github.com/0LNetworkCommunity/move-0L?rev=94e1039c9fdf1472c2c7775de43135d28dafc955)",
  "move-bytecode-verifier 0.1.0 (git+https://github.com/0LNetworkCommunity/move-0L?rev=94e1039c9fdf1472c2c7775de43135d28dafc955)",
