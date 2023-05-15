@@ -1563,9 +1563,10 @@ impl Bytecode {
         checked_precondition!(
             // The program counter could be added to at most twice and must remain
             // within the bounds of the code.
-            pc <= u16::max_value() - 2 && (pc as usize) < code.len(),
+            pc < u16::MAX && (pc as usize) < code.len(),
             "Program counter out of bounds"
         );
+
         let bytecode = &code[pc as usize];
         let mut v = vec![];
 
