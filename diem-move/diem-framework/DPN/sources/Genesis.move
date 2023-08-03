@@ -34,7 +34,7 @@ module DiemFramework::Genesis {
     // use DiemFramework::FullnodeSubsidy;
     use DiemFramework::Epoch;
     use DiemFramework::TowerState;
-    use DiemFramework::Wallet;
+    use DiemFramework::DonorDirected;
     use DiemFramework::Migrations;  
     // use DiemFramework::Testnet;
     use DiemFramework::ProofOfFee;
@@ -108,6 +108,7 @@ module DiemFramework::Genesis {
 
         AccountFreezing::initialize(dr_account);
         TransactionFee::initialize(dr_account); /////// 0L /////////
+        TransactionFee::initialize_epoch_fee_maker_registry(dr_account); /////// 0L /////////
 
         DiemSystem::initialize_validator_set(dr_account);
         DiemVersion::initialize(dr_account, initial_diem_version);
@@ -158,7 +159,7 @@ module DiemFramework::Genesis {
         Oracle::initialize(dr_account);
         TowerState::init_miner_list_and_stats(dr_account);
         TowerState::init_difficulty(dr_account);
-        Wallet::init(dr_account);
+        DonorDirected::init_root_registry(dr_account);
         DiemAccount::vm_init_slow(dr_account);
         Migrations::init(dr_account);
         MusicalChairs::initialize(dr_account);
@@ -179,6 +180,7 @@ module DiemFramework::Genesis {
           let coin = Diem::mint<GAS::GAS>(dr_account, val);
           DiemAccount::vm_deposit_with_metadata(
             dr_account,
+            @DiemRoot,
             @DiemRoot,
             coin,
             x"",

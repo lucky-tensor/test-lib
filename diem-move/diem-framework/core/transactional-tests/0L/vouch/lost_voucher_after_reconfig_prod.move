@@ -58,7 +58,7 @@ script {
         EpochBoundary::reconfigure(&vm, 15);
 
         let c = Vouch::buddies_in_set(@Alice);
-        print(&c);
+        // print(&c);
         let len = Vector::length(&c);
         print(&len);
         assert!(len == 1, 735702);

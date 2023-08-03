@@ -1,11 +1,12 @@
 address DiemFramework {
 module Burn {
-  use DiemFramework::Wallet;
+  use DiemFramework::DonorDirected;
   use Std::FixedPoint32;
   use Std::Vector;
   use DiemFramework::DiemAccount;
   use DiemFramework::CoreAddresses;
   use DiemFramework::GAS::GAS;
+  use DiemFramework::TransactionFee;
   use Std::Signer;
   // use DiemFramework::Debug::print;
   use DiemFramework::Diem;
@@ -92,7 +93,7 @@ module Burn {
   }
 
   // calculate the ratio which the community wallet should receive
-  fun get_value(payee: address, value: u64): u64 acquires DepositInfo {
+  fun get_payee_value(payee: address, value: u64): u64 acquires DepositInfo {
     if (!exists<DepositInfo>(@VMReserved)) 
       return 0;
 

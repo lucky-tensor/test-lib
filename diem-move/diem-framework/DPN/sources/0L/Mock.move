@@ -93,6 +93,7 @@ module Mock {
       // TODO: careful that the range of heights is within the test
       assert!(Cases::get_case(vm, addr, start_height, end_height) == 4, 777706);
 
+      (vals, bids, expiry)
     }
 
     // Mockl all nodes being compliant case 1

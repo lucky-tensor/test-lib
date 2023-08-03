@@ -7,6 +7,7 @@
 
 -  [Resource `BurnPreference`](#0x1_Burn_BurnPreference)
 -  [Resource `DepositInfo`](#0x1_Burn_DepositInfo)
+-  [Function `epoch_burn_fees`](#0x1_Burn_epoch_burn_fees)
 -  [Function `reset_ratios`](#0x1_Burn_reset_ratios)
 -  [Function `get_address_list`](#0x1_Burn_get_address_list)
 -  [Function `get_value`](#0x1_Burn_get_value)
@@ -23,13 +24,13 @@
 <pre><code><b>use</b> <a href="CoreAddresses.md#0x1_CoreAddresses">0x1::CoreAddresses</a>;
 <b>use</b> <a href="Diem.md#0x1_Diem">0x1::Diem</a>;
 <b>use</b> <a href="DiemAccount.md#0x1_DiemAccount">0x1::DiemAccount</a>;
+<b>use</b> <a href="DonorDirected.md#0x1_DonorDirected">0x1::DonorDirected</a>;
 <b>use</b> <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/FixedPoint32.md#0x1_FixedPoint32">0x1::FixedPoint32</a>;
 <b>use</b> <a href="GAS.md#0x1_GAS">0x1::GAS</a>;
 <b>use</b> <a href="Receipts.md#0x1_Receipts">0x1::Receipts</a>;
 <b>use</b> <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Signer.md#0x1_Signer">0x1::Signer</a>;
 <b>use</b> <a href="TransactionFee.md#0x1_TransactionFee">0x1::TransactionFee</a>;
 <b>use</b> <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector">0x1::Vector</a>;
-<b>use</b> <a href="Wallet.md#0x1_Wallet">0x1::Wallet</a>;
 </code></pre>
 
 
@@ -96,6 +97,54 @@
 
 </dd>
 </dl>
+
+
+</details>
+
+<a name="0x1_Burn_epoch_burn_fees"></a>
+
+## Function `epoch_burn_fees`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="Burn.md#0x1_Burn_epoch_burn_fees">epoch_burn_fees</a>(vm: &signer)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="Burn.md#0x1_Burn_epoch_burn_fees">epoch_burn_fees</a>(
+    vm: &signer,
+)  <b>acquires</b> <a href="Burn.md#0x1_Burn_BurnPreference">BurnPreference</a>, <a href="Burn.md#0x1_Burn_DepositInfo">DepositInfo</a> {
+    <a href="CoreAddresses.md#0x1_CoreAddresses_assert_vm">CoreAddresses::assert_vm</a>(vm);
+    // extract fees
+    <b>let</b> coins = <a href="TransactionFee.md#0x1_TransactionFee_vm_withdraw_all_coins">TransactionFee::vm_withdraw_all_coins</a>&lt;<a href="GAS.md#0x1_GAS">GAS</a>&gt;(vm);
+
+    // get the list of fee makers
+    // <b>let</b> state = <b>borrow_global</b>&lt;EpochFeeMakerRegistry&gt;(@VMReserved);
+    <b>let</b> fee_makers = <a href="TransactionFee.md#0x1_TransactionFee_get_fee_makers">TransactionFee::get_fee_makers</a>();
+    <b>let</b> len = <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector_length">Vector::length</a>(&fee_makers);
+
+    // for every user in the list burn their fees per <a href="Burn.md#0x1_Burn">Burn</a>.<b>move</b> preferences
+    <b>let</b> i = 0;
+    <b>while</b> (i &lt; len) {
+        <b>let</b> user = <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector_borrow">Vector::borrow</a>(&fee_makers, i);
+        <b>let</b> amount = <a href="TransactionFee.md#0x1_TransactionFee_get_epoch_fees_made">TransactionFee::get_epoch_fees_made</a>(*user);
+        <b>let</b> user_share = <a href="Diem.md#0x1_Diem_withdraw">Diem::withdraw</a>(&<b>mut</b> coins, amount);
+        <a href="Burn.md#0x1_Burn_burn_or_recycle_user_fees">burn_or_recycle_user_fees</a>(vm, *user, user_share);
+
+        i = i + 1;
+    };
+
+  // Superman 3 decimal errors. https://www.youtube.com/watch?v=N7JBXGkBoFc
+  // anything that is remaining should be burned
+  <a href="Diem.md#0x1_Diem_vm_burn_this_coin">Diem::vm_burn_this_coin</a>(vm, coins);
+}
+</code></pre>
+
 
 
 </details>
@@ -205,13 +254,13 @@
 
 </details>
 
-<a name="0x1_Burn_get_value"></a>
+<a name="0x1_Burn_get_payee_value"></a>
 
-## Function `get_value`
+## Function `get_payee_value`
 
 
 
-<pre><code><b>fun</b> <a href="Burn.md#0x1_Burn_get_value">get_value</a>(payee: <b>address</b>, value: u64): u64
+<pre><code><b>fun</b> <a href="Burn.md#0x1_Burn_get_payee_value">get_payee_value</a>(payee: <b>address</b>, value: u64): u64
 </code></pre>
 
 
@@ -220,7 +269,7 @@
 <summary>Implementation</summary>
 
 
-<pre><code><b>fun</b> <a href="Burn.md#0x1_Burn_get_value">get_value</a>(payee: <b>address</b>, value: u64): u64 <b>acquires</b> <a href="Burn.md#0x1_Burn_DepositInfo">DepositInfo</a> {
+<pre><code><b>fun</b> <a href="Burn.md#0x1_Burn_get_payee_value">get_payee_value</a>(payee: <b>address</b>, value: u64): u64 <b>acquires</b> <a href="Burn.md#0x1_Burn_DepositInfo">DepositInfo</a> {
   <b>if</b> (!<b>exists</b>&lt;<a href="Burn.md#0x1_Burn_DepositInfo">DepositInfo</a>&gt;(@VMReserved))
     <b>return</b> 0;
 

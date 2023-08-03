@@ -28,6 +28,7 @@ when executing from a fresh state.
 <b>use</b> <a href="DiemTransactionPublishingOption.md#0x1_DiemTransactionPublishingOption">0x1::DiemTransactionPublishingOption</a>;
 <b>use</b> <a href="DiemVMConfig.md#0x1_DiemVMConfig">0x1::DiemVMConfig</a>;
 <b>use</b> <a href="DiemVersion.md#0x1_DiemVersion">0x1::DiemVersion</a>;
+<b>use</b> <a href="DonorDirected.md#0x1_DonorDirected">0x1::DonorDirected</a>;
 <b>use</b> <a href="DualAttestation.md#0x1_DualAttestation">0x1::DualAttestation</a>;
 <b>use</b> <a href="Epoch.md#0x1_Epoch">0x1::Epoch</a>;
 <b>use</b> <a href="GAS.md#0x1_GAS">0x1::GAS</a>;
@@ -46,7 +47,6 @@ when executing from a fresh state.
 <b>use</b> <a href="ValidatorOperatorConfig.md#0x1_ValidatorOperatorConfig">0x1::ValidatorOperatorConfig</a>;
 <b>use</b> <a href="ValidatorUniverse.md#0x1_ValidatorUniverse">0x1::ValidatorUniverse</a>;
 <b>use</b> <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Vector.md#0x1_Vector">0x1::Vector</a>;
-<b>use</b> <a href="Wallet.md#0x1_Wallet">0x1::Wallet</a>;
 </code></pre>
 
 
@@ -176,6 +176,7 @@ Initializes the Diem Framework. Internal so it can be used by both genesis code,
 
     <a href="AccountFreezing.md#0x1_AccountFreezing_initialize">AccountFreezing::initialize</a>(dr_account);
     <a href="TransactionFee.md#0x1_TransactionFee_initialize">TransactionFee::initialize</a>(dr_account); /////// 0L /////////
+    <a href="TransactionFee.md#0x1_TransactionFee_initialize_epoch_fee_maker_registry">TransactionFee::initialize_epoch_fee_maker_registry</a>(dr_account); /////// 0L /////////
 
     <a href="DiemSystem.md#0x1_DiemSystem_initialize_validator_set">DiemSystem::initialize_validator_set</a>(dr_account);
     <a href="DiemVersion.md#0x1_DiemVersion_initialize">DiemVersion::initialize</a>(dr_account, initial_diem_version);
@@ -226,7 +227,7 @@ Initializes the Diem Framework. Internal so it can be used by both genesis code,
     <a href="Oracle.md#0x1_Oracle_initialize">Oracle::initialize</a>(dr_account);
     <a href="TowerState.md#0x1_TowerState_init_miner_list_and_stats">TowerState::init_miner_list_and_stats</a>(dr_account);
     <a href="TowerState.md#0x1_TowerState_init_difficulty">TowerState::init_difficulty</a>(dr_account);
-    <a href="Wallet.md#0x1_Wallet_init">Wallet::init</a>(dr_account);
+    <a href="DonorDirected.md#0x1_DonorDirected_init_root_registry">DonorDirected::init_root_registry</a>(dr_account);
     <a href="DiemAccount.md#0x1_DiemAccount_vm_init_slow">DiemAccount::vm_init_slow</a>(dr_account);
     <a href="Migrations.md#0x1_Migrations_init">Migrations::init</a>(dr_account);
     <a href="MusicalChairs.md#0x1_MusicalChairs_initialize">MusicalChairs::initialize</a>(dr_account);
@@ -247,6 +248,7 @@ Initializes the Diem Framework. Internal so it can be used by both genesis code,
       <b>let</b> coin = <a href="Diem.md#0x1_Diem_mint">Diem::mint</a>&lt;<a href="GAS.md#0x1_GAS_GAS">GAS::GAS</a>&gt;(dr_account, val);
       <a href="DiemAccount.md#0x1_DiemAccount_vm_deposit_with_metadata">DiemAccount::vm_deposit_with_metadata</a>(
         dr_account,
+        @DiemRoot,
         @DiemRoot,
         coin,
         x"",

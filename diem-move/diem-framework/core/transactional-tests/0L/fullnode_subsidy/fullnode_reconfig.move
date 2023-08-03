@@ -76,14 +76,14 @@ script {
 script {
     // use DiemFramework::DiemSystem;
     use DiemFramework::TowerState;
-    use DiemFramework::Debug::print;
-    use DiemFramework::GAS::GAS;
-    use DiemFramework::DiemAccount;
+    // use DiemFramework::Debug::print;
+    // use DiemFramework::GAS::GAS;
+    // use DiemFramework::DiemAccount;
     // use DiemFramework::NodeWeight;
 
     fun main(_dr: signer, sender: signer) {
-        print(&TowerState::get_fullnode_proofs_in_epoch());
-        print(&TowerState::get_fullnode_proofs_in_epoch_above_thresh());
+        // print(&TowerState::get_fullnode_proofs_in_epoch());
+        // print(&TowerState::get_fullnode_proofs_in_epoch_above_thresh());
         
         // Bob has one proof from testrunner, and also bob's first proof
         // TODO: check this
@@ -99,15 +99,15 @@ script {
         print(&TowerState::get_fullnode_proofs_in_epoch());
         print(&TowerState::get_fullnode_proofs_in_epoch_above_thresh());
 
-        print(&TowerState::get_count_in_epoch(@Bob));
-        print(&TowerState::get_count_above_thresh_in_epoch(@Bob));
+        // print(&TowerState::get_count_in_epoch(@Bob));
+        // print(&TowerState::get_count_above_thresh_in_epoch(@Bob));
         
         // Since the threshold in test suite is 1 proof, all the 10 are
         // counted above threshold.
         assert!(TowerState::get_fullnode_proofs_in_epoch_above_thresh() == 11, 735708);
 
-        print(&DiemAccount::balance<GAS>(@Bob));
-        print(&DiemAccount::balance<GAS>(@Alice));
+        // print(&DiemAccount::balance<GAS>(@Bob));
+        // print(&DiemAccount::balance<GAS>(@Alice));
     }
 }
 

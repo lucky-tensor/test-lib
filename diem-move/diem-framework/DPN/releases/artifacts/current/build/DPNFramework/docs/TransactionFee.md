@@ -6,16 +6,19 @@
 
 
 -  [Resource `TransactionFee`](#0x1_TransactionFee_TransactionFee)
+-  [Resource `FeeMaker`](#0x1_TransactionFee_FeeMaker)
+-  [Resource `EpochFeeMakerRegistry`](#0x1_TransactionFee_EpochFeeMakerRegistry)
 -  [Constants](#@Constants_0)
 -  [Function `initialize`](#0x1_TransactionFee_initialize)
 -  [Function `is_coin_initialized`](#0x1_TransactionFee_is_coin_initialized)
 -  [Function `is_initialized`](#0x1_TransactionFee_is_initialized)
 -  [Function `add_txn_fee_currency`](#0x1_TransactionFee_add_txn_fee_currency)
 -  [Function `pay_fee`](#0x1_TransactionFee_pay_fee)
+-  [Function `pay_fee_and_track`](#0x1_TransactionFee_pay_fee_and_track)
 -  [Function `burn_fees`](#0x1_TransactionFee_burn_fees)
 -  [Function `ol_burn_fees`](#0x1_TransactionFee_ol_burn_fees)
 -  [Function `get_amount_to_distribute`](#0x1_TransactionFee_get_amount_to_distribute)
--  [Function `get_transaction_fees_coins`](#0x1_TransactionFee_get_transaction_fees_coins)
+-  [Function `vm_withdraw_all_coins`](#0x1_TransactionFee_vm_withdraw_all_coins)
 -  [Function `get_transaction_fees_coins_amount`](#0x1_TransactionFee_get_transaction_fees_coins_amount)
 -  [Module Specification](#@Module_Specification_1)
     -  [Initialization](#@Initialization_2)
@@ -60,6 +63,71 @@ fiat <code>CoinType</code> that can be collected as a transaction fee.
 </dd>
 <dt>
 <code>preburn: <a href="Diem.md#0x1_Diem_Preburn">Diem::Preburn</a>&lt;CoinType&gt;</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a name="0x1_TransactionFee_FeeMaker"></a>
+
+## Resource `FeeMaker`
+
+FeeMaker struct lives on an individual's account
+We check how many fees the user has paid.
+This will interact with Burn preferences when there is a remainder of fees in the TransactionFee account
+
+
+<pre><code><b>struct</b> <a href="TransactionFee.md#0x1_TransactionFee_FeeMaker">FeeMaker</a> <b>has</b> key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>epoch: u64</code>
+</dt>
+<dd>
+
+</dd>
+<dt>
+<code>lifetime: u64</code>
+</dt>
+<dd>
+
+</dd>
+</dl>
+
+
+</details>
+
+<a name="0x1_TransactionFee_EpochFeeMakerRegistry"></a>
+
+## Resource `EpochFeeMakerRegistry`
+
+We need a list of who is producing fees this epoch.
+This lives on the VM address
+
+
+<pre><code><b>struct</b> <a href="TransactionFee.md#0x1_TransactionFee_EpochFeeMakerRegistry">EpochFeeMakerRegistry</a> <b>has</b> key
+</code></pre>
+
+
+
+<details>
+<summary>Fields</summary>
+
+
+<dl>
+<dt>
+<code>fee_makers: vector&lt;<b>address</b>&gt;</code>
 </dt>
 <dd>
 
@@ -301,6 +369,35 @@ Deposit <code>coin</code> into the transaction fees bucket
 
 </details>
 
+<a name="0x1_TransactionFee_pay_fee_and_track"></a>
+
+## Function `pay_fee_and_track`
+
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="TransactionFee.md#0x1_TransactionFee_pay_fee_and_track">pay_fee_and_track</a>&lt;CoinType&gt;(user: <b>address</b>, coin: <a href="Diem.md#0x1_Diem_Diem">Diem::Diem</a>&lt;CoinType&gt;)
+</code></pre>
+
+
+
+<details>
+<summary>Implementation</summary>
+
+
+<pre><code><b>public</b> <b>fun</b> <a href="TransactionFee.md#0x1_TransactionFee_pay_fee_and_track">pay_fee_and_track</a>&lt;CoinType&gt;(user: <b>address</b>, coin: <a href="Diem.md#0x1_Diem">Diem</a>&lt;CoinType&gt;) <b>acquires</b> <a href="TransactionFee.md#0x1_TransactionFee">TransactionFee</a>, <a href="TransactionFee.md#0x1_TransactionFee_FeeMaker">FeeMaker</a>, <a href="TransactionFee.md#0x1_TransactionFee_EpochFeeMakerRegistry">EpochFeeMakerRegistry</a> {
+    <a href="DiemTimestamp.md#0x1_DiemTimestamp_assert_operating">DiemTimestamp::assert_operating</a>();
+    <b>assert</b>!(<a href="TransactionFee.md#0x1_TransactionFee_is_coin_initialized">is_coin_initialized</a>&lt;CoinType&gt;(), <a href="../../../../../../../DPN/releases/artifacts/current/build/MoveStdlib/docs/Errors.md#0x1_Errors_not_published">Errors::not_published</a>(<a href="TransactionFee.md#0x1_TransactionFee_ETRANSACTION_FEE">ETRANSACTION_FEE</a>));
+    <b>let</b> amount = <a href="Diem.md#0x1_Diem_value">Diem::value</a>(&coin);
+    <b>let</b> fees = <b>borrow_global_mut</b>&lt;<a href="TransactionFee.md#0x1_TransactionFee">TransactionFee</a>&lt;CoinType&gt;&gt;(@TreasuryCompliance); // TODO: this is just the VM root actually
+    <a href="Diem.md#0x1_Diem_deposit">Diem::deposit</a>(&<b>mut</b> fees.balance, coin);
+    <a href="TransactionFee.md#0x1_TransactionFee_track_user_fee">track_user_fee</a>(user, amount);
+}
+</code></pre>
+
+
+
+</details>
+
 <a name="0x1_TransactionFee_burn_fees"></a>
 
 ## Function `burn_fees`
@@ -453,13 +550,14 @@ All the fees is burnt so the balance becomes 0.
 
 </details>
 
-<a name="0x1_TransactionFee_get_transaction_fees_coins"></a>
+<a name="0x1_TransactionFee_vm_withdraw_all_coins"></a>
 
-## Function `get_transaction_fees_coins`
+## Function `vm_withdraw_all_coins`
+
+only to be used by VM through the Burn.move module
 
 
-
-<pre><code><b>public</b> <b>fun</b> <a href="TransactionFee.md#0x1_TransactionFee_get_transaction_fees_coins">get_transaction_fees_coins</a>&lt;Token: store&gt;(dr_account: &signer): <a href="Diem.md#0x1_Diem_Diem">Diem::Diem</a>&lt;Token&gt;
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="TransactionFee.md#0x1_TransactionFee_vm_withdraw_all_coins">vm_withdraw_all_coins</a>&lt;Token: store&gt;(dr_account: &signer): <a href="Diem.md#0x1_Diem_Diem">Diem::Diem</a>&lt;Token&gt;
 </code></pre>
 
 
@@ -468,7 +566,7 @@ All the fees is burnt so the balance becomes 0.
 <summary>Implementation</summary>
 
 
-<pre><code><b>public</b> <b>fun</b> <a href="TransactionFee.md#0x1_TransactionFee_get_transaction_fees_coins">get_transaction_fees_coins</a>&lt;Token: store&gt;(
+<pre><code><b>public</b>(<b>friend</b>) <b>fun</b> <a href="TransactionFee.md#0x1_TransactionFee_vm_withdraw_all_coins">vm_withdraw_all_coins</a>&lt;Token: store&gt;(
     dr_account: &signer
 ): <a href="Diem.md#0x1_Diem">Diem</a>&lt;Token&gt; <b>acquires</b> <a href="TransactionFee.md#0x1_TransactionFee">TransactionFee</a> {
     // Can only be invoked by DiemVM privilege.

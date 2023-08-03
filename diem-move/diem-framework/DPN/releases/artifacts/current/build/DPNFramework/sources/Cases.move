@@ -17,6 +17,8 @@ address DiemFramework{
         const VALIDATOR_DOUBLY_NOT_COMPLIANT: u64 = 4;
         const INVALID_DATA: u64 = 0;
 
+        const INVALID_DATA: u64 = 0;
+
         // Determine the consensus case for the validator.
         // This happens at an epoch prologue, and labels the validator based on 
         // performance in the outgoing epoch.

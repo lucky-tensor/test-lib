@@ -185,6 +185,7 @@ address DiemFramework {
         let minted_coins = Diem::mint<GAS>(vm_sig, *&subsidy);
         DiemAccount::vm_deposit_with_metadata<GAS>(
           vm_sig,
+          @VMReserved,
           node_address,
           minted_coins,
           b"genesis subsidy",

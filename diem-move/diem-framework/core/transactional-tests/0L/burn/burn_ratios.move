@@ -1,8 +1,12 @@
-//# init --validators Alice Bob Carol
+//# init --validators Alice Bob Dave CommunityA CommunityB
 
-//# run --admin-script --signers DiemRoot Bob
+// We will set up two community wallets A and B.
+// The deposit tracker should tell us the proportion that
+// has been donoated to each.
+
+//# run --admin-script --signers DiemRoot CommunityA
 script {
-    use DiemFramework::Wallet;
+    use DiemFramework::DonorDirected;
     use Std::Vector;
     use DiemFramework::DiemAccount;
 
@@ -12,13 +16,16 @@ script {
       DiemAccount::init_cumulative_deposits(&sender, 0);
       let list = Wallet::get_comm_list();
       assert!(Vector::length(&list) == 1, 7357001);
+
+      assert!(DiemAccount::is_init_cumu_tracking(@CommunityA), 7357002);
+
     }
 }
 // check: EXECUTED
 
-//# run --admin-script --signers DiemRoot Carol
+//# run --admin-script --signers DiemRoot CommunityB
 script {
-    use DiemFramework::Wallet;
+    use DiemFramework::DonorDirected;
     use Std::Vector;
     use DiemFramework::DiemAccount;
 
@@ -39,13 +46,13 @@ script {
   use DiemFramework::Burn;
   use Std::Vector;
   use Std::FixedPoint32;
-  use DiemFramework::Debug::print;
+  // // use DiemFramework::Debug::print;
 
   fun main(vm: signer, _:signer) {
-    // send to community wallet Bob
-    DiemAccount::vm_make_payment_no_limit<GAS>(@Alice, @Bob, 100000, x"", x"", &vm);
-    // send to community wallet Carol
-    DiemAccount::vm_make_payment_no_limit<GAS>(@Alice, @Carol, 900000, x"", x"", &vm);
+    // send to community wallet CommunityA
+    DiemAccount::vm_make_payment_no_limit<GAS>(@Alice, @CommunityA, 100000, x"", x"", &vm);
+    // send to community wallet CommunityB
+    DiemAccount::vm_make_payment_no_limit<GAS>(@Alice, @CommunityB, 900000, x"", x"", &vm);
 
     Burn::reset_ratios(&vm);
     let (addr, deps , ratios) = Burn::get_ratios();
